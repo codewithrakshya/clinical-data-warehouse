@@ -907,12 +907,12 @@ with brain_tab:
             st.caption(str(exc))
         else:
             if cdc_source == "Live CDC API":
-                st.success("Data source: live CDC API", icon="●")
+                st.success("Data source: live CDC API", icon="✅")
             else:
                 st.info(
                     "The CDC API is temporarily unavailable. Showing the committed "
                     "cognitive-decline snapshot downloaded July 27, 2026.",
-                    icon="↻",
+                    icon="🔄",
                 )
 
             available_questions = sorted(cdc["question"].dropna().unique())

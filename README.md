@@ -4,6 +4,15 @@ A portfolio-scale, multi-source clinical data warehouse built with Python,
 PostgreSQL, [Synthea](https://synthea.mitre.org/), and the openly available
 [MIMIC-IV Clinical Database Demo](https://physionet.org/content/mimic-iv-demo/2.2/).
 
+The project is also beginning a separate brain-health evidence track using the
+unrestricted [CDC Alzheimer's Disease and Healthy Aging Data](https://data.cdc.gov/Healthy-Aging/Alzheimer-s-Disease-and-Healthy-Aging-Data/hfr9-rurv).
+These aggregate estimates are deliberately kept separate from patient-level
+clinical facts. See [the CDC source guide](docs/cdc-healthy-aging.md).
+
+The brain-health evidence view also models published aggregate outcomes from
+the US-POINTER randomized clinical trial. See
+[the US-POINTER evidence guide](docs/us-pointer-evidence.md).
+
 [**Explore the live Clinical Warehouse dashboard →**](https://rakshya-clinical-warehouse.streamlit.app/)
 
 **New to the project?** Read
@@ -326,3 +335,6 @@ silently removed.
 - [x] Add problem-focused analytics and an interactive cohort explorer
 - [x] Add a Streamlit dashboard
 - [x] Add GitHub Actions CI
+- [x] Add a reproducible CDC Healthy Aging downloader and preparation workflow
+- [x] Model public US-POINTER results as trial-level evidence
+- [x] Add a brain-health evidence view to the Streamlit interface

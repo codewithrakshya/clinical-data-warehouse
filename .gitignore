@@ -10,7 +10,11 @@ htmlcov/
 data/raw/*
 data/processed/*
 data/mimic/*
+data/brain_health/raw/*
+data/brain_health/processed/*
 !data/raw/.gitkeep
 !data/processed/.gitkeep
 !data/mimic/.gitkeep
+!data/brain_health/raw/.gitkeep
+!data/brain_health/processed/.gitkeep
 postgres_data/

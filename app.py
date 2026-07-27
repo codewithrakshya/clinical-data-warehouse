@@ -8,7 +8,18 @@ import psycopg
 import streamlit as st
 from streamlit.errors import StreamlitSecretNotFoundError
 
+from clinical_dw.cdc_aging import fetch_cdc_aging_frame
 from clinical_dw.quality import run_quality_checks
+from clinical_dw.us_pointer import (
+    FOLLOW_UP_YEARS,
+    PARTICIPANTS,
+    PUBLICATION_URL,
+    SELF_GUIDED_PARTICIPANTS,
+    STRUCTURED_PARTICIPANTS,
+    TRIAL_REGISTRATION,
+    YEAR_2_COMPLETION_PERCENT,
+    load_us_pointer_evidence,
+)
 
 
 def database_url() -> str:
@@ -154,6 +165,27 @@ st.markdown(
         border-radius: 0 12px 12px 0;
         color: #674d20;
       }
+      .evidence-label {
+        display: inline-block;
+        padding: .35rem .65rem;
+        margin-bottom: .65rem;
+        border-radius: 999px;
+        font-size: .75rem;
+        font-weight: 800;
+        letter-spacing: .04em;
+        text-transform: uppercase;
+      }
+      .evidence-rct { background: #dff5ed; color: #135946; }
+      .evidence-observational { background: #e8effa; color: #31547e; }
+      .evidence-card {
+        height: 100%;
+        padding: 1.1rem 1.2rem;
+        border: 1px solid #dfe8e4;
+        border-radius: 18px;
+        background: rgba(255,255,255,.9);
+      }
+      .evidence-card h4 { margin: .15rem 0 .5rem; color: #174f42; }
+      .evidence-card p { margin: 0; color: #5b6f68; line-height: 1.55; }
       .stTabs [data-baseweb="tab-list"] {
         gap: .4rem;
         background: #edf2ef;
@@ -199,6 +231,11 @@ def query_with_params(statement: str, params: tuple[object, ...]) -> pd.DataFram
 def quality_results() -> pd.DataFrame:
     with psycopg.connect(DATABASE_URL) as connection:
         return pd.DataFrame(check.as_dict() for check in run_quality_checks(connection))
+
+
+@st.cache_data(ttl=3600)
+def cognitive_decline_data() -> pd.DataFrame:
+    return fetch_cdc_aging_frame(where="class='Cognitive Decline'")
 
 
 def format_count(value: int) -> str:
@@ -302,11 +339,12 @@ for column, (title, body) in zip(problem_columns, problem_cards, strict=True):
         )
 
 st.write("")
-story_tab, cohort_tab, patterns_tab, trust_tab, runs_tab = st.tabs(
+story_tab, cohort_tab, patterns_tab, brain_tab, trust_tab, runs_tab = st.tabs(
     [
         "How it solves the problem",
         "Build a cohort",
         "Explore clinical patterns",
+        "Brain health evidence",
         "Trust & provenance",
         "Pipeline runs",
     ]
@@ -628,6 +666,302 @@ with patterns_tab:
             """
         )
         st.bar_chart(demographics.set_index("race"), color="#72bda3")
+
+with brain_tab:
+    st.subheader("What can improve brain health—and where is the population burden?")
+    st.markdown(
+        '<p class="section-note">Two evidence layers answer different questions. '
+        "The randomized trial estimates an intervention effect; CDC surveillance "
+        "describes population patterns. They are displayed together but never "
+        "treated as the same type of evidence.</p>",
+        unsafe_allow_html=True,
+    )
+
+    trial_column, surveillance_column = st.columns(2)
+    with trial_column:
+        st.markdown(
+            """
+            <div class="evidence-card">
+              <span class="evidence-label evidence-rct">Randomized evidence</span>
+              <h4>US-POINTER</h4>
+              <p>
+                Tests whether a structured, multidomain lifestyle program improves
+                cognitive trajectory relative to a lower-intensity self-guided program.
+                Random assignment supports a causal comparison between these two groups.
+              </p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    with surveillance_column:
+        st.markdown(
+            """
+            <div class="evidence-card">
+              <span class="evidence-label evidence-observational">
+                Observational surveillance
+              </span>
+              <h4>CDC Healthy Aging / BRFSS</h4>
+              <p>
+                Describes self-reported cognitive decline across places and population
+                groups. It identifies patterns and inequities, but cannot establish that
+                a risk factor or intervention caused an outcome.
+              </p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    st.write("")
+    trial_tab, population_tab, methods_tab = st.tabs(
+        ["US-POINTER results", "CDC population patterns", "How to interpret"]
+    )
+
+    with trial_tab:
+        evidence = load_us_pointer_evidence()
+        primary = evidence.loc[evidence["outcome_role"] == "Primary"].iloc[0]
+
+        st.markdown(
+            '<span class="evidence-label evidence-rct">Randomized clinical trial</span>',
+            unsafe_allow_html=True,
+        )
+        trial_metrics = st.columns(4)
+        trial_metrics[0].metric("Participants randomized", format_count(PARTICIPANTS))
+        trial_metrics[1].metric("Follow-up", f"{FOLLOW_UP_YEARS} years")
+        trial_metrics[2].metric(
+            "Primary difference",
+            f"{primary['difference']:.3f} SD/year",
+            help="Structured minus self-guided annual change in global cognition.",
+        )
+        trial_metrics[3].metric(
+            "95% confidence interval",
+            f"{primary['difference_ci_low']:.3f} to {primary['difference_ci_high']:.3f}",
+        )
+
+        st.markdown(
+            f"""
+            The structured group included **{STRUCTURED_PARTICIPANTS:,}** participants
+            and the self-guided group included **{SELF_GUIDED_PARTICIPANTS:,}**.
+            **{YEAR_2_COMPLETION_PERCENT:.0f}%** completed the year-two assessment.
+            Both groups improved on the global cognitive composite; the structured
+            intervention improved more rapidly by **0.029 SD per year**.
+            """
+        )
+
+        slope_chart = (
+            evidence.set_index("outcome")[["structured_slope", "self_guided_slope"]]
+            .rename(
+                columns={
+                    "structured_slope": "Structured",
+                    "self_guided_slope": "Self-guided",
+                }
+            )
+        )
+        st.markdown("#### Annual cognitive-score change")
+        st.bar_chart(
+            slope_chart,
+            color=["#176b57", "#8aa9c5"],
+            y_label="Adjusted change (SD per year)",
+        )
+
+        result_table = evidence[
+            [
+                "outcome",
+                "outcome_role",
+                "difference",
+                "difference_ci_low",
+                "difference_ci_high",
+                "ci_excludes_zero",
+            ]
+        ].copy()
+        result_table["interpretation"] = result_table["ci_excludes_zero"].map(
+            {
+                True: "95% CI excludes zero",
+                False: "95% CI includes zero",
+            }
+        )
+        st.dataframe(
+            result_table.drop(columns="ci_excludes_zero"),
+            width="stretch",
+            hide_index=True,
+            column_config={
+                "outcome": "Cognitive outcome",
+                "outcome_role": "Analysis role",
+                "difference": st.column_config.NumberColumn(
+                    "Structured − self-guided", format="%.3f"
+                ),
+                "difference_ci_low": st.column_config.NumberColumn(
+                    "95% CI low", format="%.3f"
+                ),
+                "difference_ci_high": st.column_config.NumberColumn(
+                    "95% CI high", format="%.3f"
+                ),
+                "interpretation": "Uncertainty",
+            },
+        )
+        st.markdown(
+            f"""
+            [Read the peer-reviewed JAMA report]({PUBLICATION_URL}) ·
+            Trial registration: [{TRIAL_REGISTRATION}](
+            https://clinicaltrials.gov/study/{TRIAL_REGISTRATION})
+            """
+        )
+        st.markdown(
+            '<p class="trust-note"><strong>What this does not prove:</strong> '
+            "The result does not show that either program prevents Alzheimer disease, "
+            "nor does the standardized cognitive-score difference directly state how "
+            "many dementia cases were prevented. Longer follow-up is needed to assess "
+            "clinical significance and durability.</p>",
+            unsafe_allow_html=True,
+        )
+
+    with population_tab:
+        st.markdown(
+            '<span class="evidence-label evidence-observational">'
+            "Observational population surveillance</span>",
+            unsafe_allow_html=True,
+        )
+        try:
+            cdc = cognitive_decline_data()
+        except (OSError, ValueError) as exc:
+            st.warning(
+                "The CDC API is temporarily unavailable. US-POINTER evidence remains "
+                "available because its published aggregate results are versioned locally."
+            )
+            st.caption(str(exc))
+        else:
+            available_questions = sorted(cdc["question"].dropna().unique())
+            default_question_index = next(
+                (
+                    index
+                    for index, question in enumerate(available_questions)
+                    if "happening more often or is getting worse" in question.lower()
+                ),
+                0,
+            )
+            selected_question = st.selectbox(
+                "Population indicator",
+                available_questions,
+                index=default_question_index,
+            )
+            question_data = cdc.loc[cdc["question"] == selected_question].copy()
+
+            years = sorted(
+                question_data["year_end"].dropna().astype(int).unique(),
+                reverse=True,
+            )
+            selected_year = st.selectbox("Reporting year", years)
+            year_data = question_data.loc[
+                question_data["year_end"] == selected_year
+            ].copy()
+
+            overall_mask = year_data["stratification_1"].eq("Overall") & (
+                year_data["stratification_2"].isna()
+                | year_data["stratification_2"].eq("Overall")
+            )
+            state_data = year_data.loc[
+                overall_mask
+                & year_data["estimate_available"]
+                & year_data["location_abbr"].str.fullmatch(r"[A-Z]{2}", na=False)
+            ].copy()
+            state_data = state_data.drop_duplicates("location_abbr")
+
+            population_metrics = st.columns(3)
+            population_metrics[0].metric(
+                "Published estimates",
+                format_count(int(year_data["estimate_available"].sum())),
+            )
+            population_metrics[1].metric(
+                "Locations represented",
+                format_count(int(year_data["location_abbr"].nunique())),
+            )
+            population_metrics[2].metric(
+                "Estimates unavailable",
+                format_count(int((~year_data["estimate_available"]).sum())),
+                help="Missing or suppressed estimates are retained as a data-quality signal.",
+            )
+
+            if state_data.empty:
+                st.info(
+                    "This indicator/year combination has no directly comparable "
+                    "overall state estimates. Choose another reporting year or indicator."
+                )
+            else:
+                st.markdown("#### Highest reported state-level estimates")
+                top_states = (
+                    state_data.nlargest(15, "estimate")
+                    .set_index("location")[["estimate"]]
+                    .rename(columns={"estimate": "Reported estimate"})
+                )
+                st.bar_chart(
+                    top_states,
+                    color="#5885b8",
+                    horizontal=True,
+                    x_label=str(state_data["value_unit"].dropna().iloc[0]),
+                )
+                st.dataframe(
+                    state_data[
+                        [
+                            "location",
+                            "estimate",
+                            "confidence_low",
+                            "confidence_high",
+                            "value_unit",
+                        ]
+                    ].sort_values("estimate", ascending=False),
+                    width="stretch",
+                    hide_index=True,
+                    column_config={
+                        "location": "Location",
+                        "estimate": "Estimate",
+                        "confidence_low": "95% CI low",
+                        "confidence_high": "95% CI high",
+                        "value_unit": "Unit",
+                    },
+                )
+
+            st.caption(
+                "Source: CDC Alzheimer's Disease and Healthy Aging Data, derived "
+                "primarily from BRFSS. Estimates are self-reported survey measures, "
+                "not clinical Alzheimer diagnoses."
+            )
+
+    with methods_tab:
+        comparison = pd.DataFrame(
+            [
+                (
+                    "US-POINTER",
+                    "Randomized clinical trial",
+                    "Does the structured program outperform the self-guided program?",
+                    "Causal comparison between randomized groups",
+                    "Does not directly establish dementia prevention",
+                ),
+                (
+                    "CDC Healthy Aging / BRFSS",
+                    "Observational surveillance",
+                    "Where and among whom is cognitive decline reported?",
+                    "Population patterns, disparities, and uncertainty",
+                    "Self-report; associations are not causal or diagnostic",
+                ),
+            ],
+            columns=[
+                "Evidence source",
+                "Design",
+                "Question answered",
+                "Strongest inference",
+                "Critical limitation",
+            ],
+        )
+        st.dataframe(comparison, width="stretch", hide_index=True)
+        st.markdown(
+            """
+            **Why the separation matters:** randomized assignment balances many
+            competing explanations between intervention groups. A surveillance survey
+            observes existing people and circumstances, so differences can reflect
+            age, health, access, socioeconomic conditions, measurement, or other
+            confounding factors. The two sources complement one another, but their
+            numbers should not be pooled into a single effect estimate.
+            """
+        )
 
 with trust_tab:
     st.subheader("Evidence that the warehouse is safe to analyze")

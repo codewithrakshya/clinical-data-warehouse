@@ -6,6 +6,7 @@ from pathlib import Path
 
 import psycopg
 
+from clinical_dw.cdc_aging import download_cdc_aging, prepare_cdc_aging
 from clinical_dw.database import initialize_database
 from clinical_dw.pipeline import run_pipeline
 from clinical_dw.quality import run_quality_checks
@@ -113,6 +114,24 @@ def build_parser() -> argparse.ArgumentParser:
         "--database-url",
         default=os.getenv("DATABASE_URL", DEFAULT_DATABASE_URL),
     )
+
+    fetch_aging = subparsers.add_parser(
+        "fetch-cdc-aging",
+        help="download the unrestricted CDC Healthy Aging public dataset",
+    )
+    fetch_aging.add_argument("--output", type=Path, required=True)
+    fetch_aging.add_argument(
+        "--max-rows",
+        type=int,
+        help="optional row limit for a quick learning/test download",
+    )
+
+    prepare_aging = subparsers.add_parser(
+        "prepare-cdc-aging",
+        help="validate and prepare CDC Healthy Aging data for analysis",
+    )
+    prepare_aging.add_argument("--input", type=Path, required=True)
+    prepare_aging.add_argument("--output-dir", type=Path, required=True)
     return parser
 
 
@@ -189,6 +208,19 @@ def main() -> int:
         for check in result.quality_checks:
             print(f"{check.status:4} {check.check}")
         return 1 if any(check.status == "FAIL" for check in result.quality_checks) else 0
+
+    if args.command == "fetch-cdc-aging":
+        count = download_cdc_aging(args.output, max_rows=args.max_rows)
+        print(f"DOWNLOADED CDC Healthy Aging rows={count} path={args.output}")
+        return 0
+
+    if args.command == "prepare-cdc-aging":
+        observations, topics = prepare_cdc_aging(args.input, args.output_dir)
+        print(
+            "PREPARED CDC Healthy Aging "
+            f"observations={observations} topics={topics} output={args.output_dir}"
+        )
+        return 0
 
     return 2
 

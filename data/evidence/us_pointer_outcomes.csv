@@ -1,0 +1,5 @@
+outcome,outcome_role,structured_slope,structured_ci_low,structured_ci_high,self_guided_slope,self_guided_ci_low,self_guided_ci_high,difference,difference_ci_low,difference_ci_high,p_value,unit,source_table,publication_url
+Global cognitive function,Primary,0.243,0.227,0.258,0.213,0.198,0.229,0.029,0.008,0.050,0.008,SD per year,Table 2,https://jamanetwork.com/journals/jama/fullarticle/2837046
+Executive function,Secondary,0.160,0.140,0.180,0.122,0.102,0.141,0.037,0.010,0.064,,SD per year,Table 2,https://jamanetwork.com/journals/jama/fullarticle/2837046
+Episodic memory,Secondary,0.250,0.230,0.270,0.239,0.219,0.259,0.009,-0.019,0.037,,SD per year,Table 2,https://jamanetwork.com/journals/jama/fullarticle/2837046
+Processing speed,Secondary,0.178,0.158,0.198,0.155,0.136,0.175,0.023,-0.004,0.050,,SD per year,Table 2,https://jamanetwork.com/journals/jama/fullarticle/2837046

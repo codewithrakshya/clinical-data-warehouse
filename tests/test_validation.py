@@ -48,6 +48,27 @@ class ValidationTests(unittest.TestCase):
         self.assertTrue(result.valid)
         self.assertEqual(result.row_count, 1)
 
+    def test_validation_accepts_current_observation_columns(self) -> None:
+        columns = [
+            "DATE",
+            "PATIENT",
+            "ENCOUNTER",
+            "CATEGORY",
+            "CODE",
+            "DESCRIPTION",
+            "VALUE",
+            "UNITS",
+            "TYPE",
+        ]
+        write_csv(
+            self.input_dir / "observations.csv",
+            columns,
+            [{column: f"value-{column}" for column in columns}],
+        )
+        result = validate_csv(self.input_dir, "observations")
+        self.assertTrue(result.valid)
+        self.assertEqual(result.row_count, 1)
+
 
 if __name__ == "__main__":
     unittest.main()

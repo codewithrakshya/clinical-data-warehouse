@@ -54,7 +54,7 @@ CONTRACTS = {
                 "DATE",
                 "PATIENT",
                 "ENCOUNTER",
-                "SYSTEM",
+                "CATEGORY",
                 "CODE",
                 "DESCRIPTION",
                 "VALUE",

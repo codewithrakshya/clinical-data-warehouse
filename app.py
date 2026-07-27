@@ -5,13 +5,21 @@ import os
 import pandas as pd
 import psycopg
 import streamlit as st
+from streamlit.errors import StreamlitSecretNotFoundError
 
 from clinical_dw.quality import run_quality_checks
 
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql://clinical_dw:clinical_dw_dev@localhost:5432/clinical_dw",
-)
+
+def database_url() -> str:
+    if configured_url := os.getenv("DATABASE_URL"):
+        return configured_url
+    try:
+        return str(st.secrets["DATABASE_URL"])
+    except (KeyError, StreamlitSecretNotFoundError):
+        return "postgresql://clinical_dw:clinical_dw_dev@localhost:5432/clinical_dw"
+
+
+DATABASE_URL = database_url()
 
 st.set_page_config(
     page_title="Clinical Warehouse Explorer",

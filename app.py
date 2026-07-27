@@ -1,4 +1,4 @@
-"""Streamlit interface for the multi-source clinical data warehouse."""
+"""Problem-focused Streamlit interface for the clinical data warehouse."""
 
 import html
 import os
@@ -23,7 +23,7 @@ def database_url() -> str:
 DATABASE_URL = database_url()
 
 st.set_page_config(
-    page_title="Clinical Warehouse Explorer",
+    page_title="Clinical Data Trust Lab",
     page_icon="🧬",
     layout="wide",
 )
@@ -31,52 +31,147 @@ st.set_page_config(
 st.markdown(
     """
     <style>
-      .stApp { background: #f5f7f6; }
+      :root {
+        --ink: #14211d;
+        --muted: #5c6f68;
+        --green: #176b57;
+        --mint: #72d6b5;
+        --cream: #f6f3ec;
+        --amber: #f2b84b;
+      }
+      .stApp {
+        background:
+          radial-gradient(circle at 100% 0%, rgba(114, 214, 181, .13), transparent 28rem),
+          #f7f8f6;
+        color: var(--ink);
+      }
       [data-testid="stHeader"] { background: transparent; }
+      .block-container { max-width: 1280px; padding-top: 1.4rem; }
       .hero {
-        padding: 2rem 2.2rem;
-        border-radius: 22px;
+        position: relative;
+        overflow: hidden;
+        padding: clamp(2rem, 5vw, 4.5rem);
+        border-radius: 30px;
         color: #f7fffc;
         background:
-          radial-gradient(circle at 85% 20%, rgba(97, 214, 181, .35), transparent 28%),
-          linear-gradient(125deg, #12372f 0%, #185b4c 58%, #247a66 100%);
-        box-shadow: 0 16px 38px rgba(21, 75, 63, .18);
-        margin-bottom: 1.2rem;
+          radial-gradient(circle at 86% 16%, rgba(114, 214, 181, .38), transparent 25%),
+          radial-gradient(circle at 75% 110%, rgba(242, 184, 75, .22), transparent 34%),
+          linear-gradient(135deg, #102c25 0%, #145342 54%, #1e7c64 100%);
+        box-shadow: 0 24px 64px rgba(20, 68, 56, .2);
+        margin-bottom: 1.4rem;
       }
-      .hero-kicker {
-        color: #a8ead6;
-        font-size: .78rem;
-        font-weight: 700;
-        letter-spacing: .14em;
+      .hero::after {
+        content: "";
+        position: absolute;
+        width: 240px;
+        height: 240px;
+        right: -80px;
+        bottom: -110px;
+        border: 1px solid rgba(255,255,255,.22);
+        border-radius: 50%;
+        box-shadow: 0 0 0 32px rgba(255,255,255,.04), 0 0 0 64px rgba(255,255,255,.03);
+      }
+      .eyebrow {
+        color: #9fe7d0;
+        font-size: .76rem;
+        font-weight: 800;
+        letter-spacing: .16em;
         text-transform: uppercase;
       }
       .hero h1 {
-        font-size: clamp(2rem, 5vw, 3.6rem);
-        letter-spacing: -.045em;
-        line-height: 1;
-        margin: .55rem 0 .8rem;
+        max-width: 900px;
+        font-size: clamp(2.4rem, 6vw, 5rem);
+        letter-spacing: -.055em;
+        line-height: .98;
+        margin: .8rem 0 1.15rem;
       }
-      .hero p { color: #d9f4ea; max-width: 760px; margin: 0; }
+      .hero p {
+        color: #d9f4eb;
+        font-size: 1.08rem;
+        line-height: 1.65;
+        max-width: 780px;
+        margin: 0;
+      }
+      .source-pill {
+        display: inline-block;
+        margin-top: 1.4rem;
+        padding: .48rem .75rem;
+        border: 1px solid rgba(255,255,255,.25);
+        background: rgba(255,255,255,.1);
+        border-radius: 999px;
+        color: #effff9;
+        font-size: .82rem;
+      }
       [data-testid="stMetric"] {
-        background: white;
-        border: 1px solid #dde7e3;
-        border-radius: 16px;
-        padding: 1rem 1.1rem;
-        box-shadow: 0 6px 20px rgba(26, 60, 52, .05);
+        background: rgba(255,255,255,.92);
+        border: 1px solid #dfe8e4;
+        border-radius: 18px;
+        padding: 1rem 1.15rem;
+        box-shadow: 0 8px 24px rgba(31, 66, 57, .06);
       }
-      [data-testid="stMetricValue"] { color: #164f43; }
+      [data-testid="stMetricLabel"] { color: #60736c; }
+      [data-testid="stMetricValue"] { color: #124f40; }
+      .problem-card, .flow-card {
+        height: 100%;
+        padding: 1.15rem 1.2rem;
+        border-radius: 18px;
+        border: 1px solid #dde6e2;
+        background: rgba(255,255,255,.88);
+      }
+      .problem-card strong, .flow-card strong {
+        display: block;
+        color: #174f42;
+        margin-bottom: .35rem;
+      }
+      .problem-card p, .flow-card p {
+        color: #5b6f68;
+        font-size: .9rem;
+        line-height: 1.55;
+        margin: 0;
+      }
+      .flow-number {
+        display: inline-flex;
+        width: 1.85rem;
+        height: 1.85rem;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: .7rem;
+        border-radius: 50%;
+        background: #dff5ed;
+        color: #16604e;
+        font-weight: 800;
+      }
       .section-note {
-        color: #526a63;
-        font-size: .92rem;
-        margin-top: -.5rem;
+        color: #60736c;
+        font-size: .93rem;
+        margin-top: -.45rem;
         margin-bottom: 1rem;
       }
-      .synthetic-note {
-        border-left: 4px solid #e4a853;
-        background: #fff8eb;
-        padding: .8rem 1rem;
-        border-radius: 0 10px 10px 0;
-        color: #6f5329;
+      .trust-note {
+        border-left: 4px solid var(--amber);
+        background: #fff8e9;
+        padding: .9rem 1.05rem;
+        border-radius: 0 12px 12px 0;
+        color: #674d20;
+      }
+      .stTabs [data-baseweb="tab-list"] {
+        gap: .4rem;
+        background: #edf2ef;
+        padding: .35rem;
+        border-radius: 14px;
+      }
+      .stTabs [data-baseweb="tab"] {
+        border-radius: 10px;
+        padding: .45rem .8rem;
+      }
+      .stTabs [aria-selected="true"] {
+        background: white;
+        box-shadow: 0 3px 10px rgba(29, 63, 54, .08);
+      }
+      div[data-testid="stDataFrame"] {
+        border: 1px solid #dfe8e4;
+        border-radius: 14px;
+        overflow: hidden;
       }
     </style>
     """,
@@ -88,6 +183,14 @@ st.markdown(
 def query(statement: str) -> pd.DataFrame:
     with psycopg.connect(DATABASE_URL) as connection, connection.cursor() as cursor:
         cursor.execute(statement)
+        columns = [column.name for column in cursor.description]
+        return pd.DataFrame(cursor.fetchall(), columns=columns)
+
+
+@st.cache_data(ttl=30)
+def query_with_params(statement: str, params: tuple[object, ...]) -> pd.DataFrame:
+    with psycopg.connect(DATABASE_URL) as connection, connection.cursor() as cursor:
+        cursor.execute(statement, params)
         columns = [column.name for column in cursor.description]
         return pd.DataFrame(cursor.fetchall(), columns=columns)
 
@@ -106,22 +209,29 @@ try:
     counts = query(
         """
         SELECT
+          (SELECT COUNT(*) FROM staging.patients)
+            + (SELECT COUNT(*) FROM staging.encounters)
+            + (SELECT COUNT(*) FROM staging.conditions)
+            + (SELECT COUNT(*) FROM staging.observations) AS normalized_source_rows,
           (SELECT COUNT(*) FROM warehouse.dim_patient) AS patients,
           (SELECT COUNT(*) FROM warehouse.fact_encounter) AS encounters,
           (SELECT COUNT(*) FROM warehouse.fact_condition) AS conditions,
           (SELECT COUNT(*) FROM warehouse.fact_observation) AS observations,
+          (SELECT COUNT(*) FROM warehouse.dim_code) AS codes,
           (SELECT source_label FROM warehouse.dataset_metadata WHERE metadata_id = 1)
             AS source_label,
           (SELECT source_version FROM warehouse.dataset_metadata WHERE metadata_id = 1)
             AS source_version,
           (SELECT is_synthetic FROM warehouse.dataset_metadata WHERE metadata_id = 1)
-            AS is_synthetic
+            AS is_synthetic,
+          (SELECT loaded_at FROM warehouse.dataset_metadata WHERE metadata_id = 1)
+            AS loaded_at
         """
     ).iloc[0]
 except psycopg.Error as exc:
     st.error(
-        "The dashboard cannot reach the local warehouse. Start Docker and run the "
-        "warehouse loading commands before opening the interface."
+        "The dashboard cannot reach the warehouse. Start PostgreSQL and run the "
+        "pipeline before opening the interface."
     )
     st.code(str(exc))
     st.stop()
@@ -136,177 +246,336 @@ is_synthetic = (
     True if pd.isna(counts["is_synthetic"]) else bool(counts["is_synthetic"])
 )
 source_display = f"{source_label} v{source_version}" if source_version else source_label
-source_kind = "Synthetic clinical analytics" if is_synthetic else "Deidentified EHR analytics"
 
 st.markdown(
     f"""
     <div class="hero">
-      <div class="hero-kicker">{html.escape(source_kind)}</div>
-      <h1>Clinical Warehouse Explorer</h1>
+      <div class="eyebrow">Clinical data engineering • trust before analysis</div>
+      <h1>From fragmented clinical files to a trustworthy research cohort.</h1>
       <p>
-        Follow validated {html.escape(source_display)} records from source-specific
-        files to connected, analytics-ready patient, encounter, condition, and
-        observation facts.
+        Clinical datasets arrive with incompatible identifiers, code systems,
+        timestamps, and missing values. This platform validates and harmonizes them
+        into one auditable warehouse—then lets researchers define cohorts without
+        rebuilding every join from scratch.
       </p>
+      <span class="source-pill">Active source · {html.escape(source_display)}</span>
     </div>
     """,
     unsafe_allow_html=True,
 )
 
 metric_columns = st.columns(4)
-metric_columns[0].metric("Patients", format_count(int(counts["patients"])))
-metric_columns[1].metric("Encounters", format_count(int(counts["encounters"])))
-metric_columns[2].metric("Condition episodes", format_count(int(counts["conditions"])))
-metric_columns[3].metric("Observations", format_count(int(counts["observations"])))
-
-if is_synthetic:
-    source_note = (
-        "This interface contains synthetic Synthea data. Its summaries demonstrate "
-        "engineering and analytical behavior—not conclusions about a real population."
-    )
-else:
-    source_note = (
-        "This interface uses the openly available, deidentified MIMIC-IV Demo. "
-        "Identifiers and dates were transformed for privacy; summaries are educational "
-        "and must not be interpreted as clinical findings."
-    )
-st.markdown(
-    f'<p class="synthetic-note">{html.escape(source_note)}</p>',
-    unsafe_allow_html=True,
+metric_columns[0].metric(
+    "Normalized source rows",
+    format_count(int(counts["normalized_source_rows"])),
+    help="Rows that passed source-specific normalization and entered staging.",
 )
-if not is_synthetic:
-    st.caption(
-        "Source: MIMIC-IV Clinical Database Demo v2.2, PhysioNet "
-        "(Johnson et al., 2023; DOI: 10.13026/dp1f-ex47)."
-    )
-
-overview_tab, condition_tab, observation_tab, quality_tab, pipeline_tab = st.tabs(
-    ["Overview", "Conditions", "Observations", "Data quality", "Pipeline"]
+metric_columns[1].metric("Linked patients", format_count(int(counts["patients"])))
+metric_columns[2].metric(
+    "Clinical events",
+    format_count(
+        int(counts["encounters"]) + int(counts["conditions"]) + int(counts["observations"])
+    ),
 )
+metric_columns[3].metric("Standardized codes", format_count(int(counts["codes"])))
 
-with overview_tab:
-    left, right = st.columns((1.15, 1))
-    with left:
-        st.subheader("Healthcare utilization")
+problem_columns = st.columns(3)
+problem_cards = (
+    (
+        "The problem",
+        "Clinical files use source-specific structures, so analysis begins with repeated cleaning, mapping, and fragile joins.",
+    ),
+    (
+        "The intervention",
+        "Adapters validate each source and normalize patients, encounters, diagnoses, labs, codes, and dates into one model.",
+    ),
+    (
+        "The outcome",
+        "Researchers get an auditable, quality-checked cohort layer that can be explored and exported consistently.",
+    ),
+)
+for column, (title, body) in zip(problem_columns, problem_cards, strict=True):
+    with column:
         st.markdown(
-            '<p class="section-note">Encounter volume by source-defined visit class.</p>',
+            f'<div class="problem-card"><strong>{title}</strong><p>{body}</p></div>',
             unsafe_allow_html=True,
         )
-        encounter_classes = query(
-            """
-            SELECT encounter_class, COUNT(*) AS encounters
-            FROM warehouse.fact_encounter
-            GROUP BY encounter_class
-            ORDER BY encounters DESC
-            """
-        )
-        st.bar_chart(
-            encounter_classes.set_index("encounter_class"),
-            color="#247a66",
-            horizontal=True,
-        )
 
-    with right:
-        st.subheader("Patient coverage")
-        st.markdown(
-            '<p class="section-note">Demographics represented in the active dataset.</p>',
-            unsafe_allow_html=True,
-        )
-        demographics = query(
-            """
-            SELECT
-              COALESCE(race, 'Unknown') AS race,
-              COUNT(*) AS patients
-            FROM warehouse.dim_patient
-            GROUP BY COALESCE(race, 'Unknown')
-            ORDER BY patients DESC
-            """
-        )
-        st.bar_chart(demographics.set_index("race"), color="#e4a853")
+st.write("")
+story_tab, cohort_tab, patterns_tab, trust_tab, runs_tab = st.tabs(
+    [
+        "How it solves the problem",
+        "Build a cohort",
+        "Explore clinical patterns",
+        "Trust & provenance",
+        "Pipeline runs",
+    ]
+)
 
-    st.subheader("Encounter duration and utilization")
-    utilization = query(
-        """
-        SELECT
-          encounter_class,
-          COUNT(*) AS encounters,
-          ROUND(AVG(EXTRACT(EPOCH FROM (stop_at - start_at)) / 60)::numeric, 1)
-            AS average_minutes,
-          ROUND(SUM(total_claim_cost), 2) AS total_claim_cost
-        FROM warehouse.fact_encounter
-        GROUP BY encounter_class
-        ORDER BY encounters DESC
-        """
-    )
-    utilization_config = {
-        "encounter_class": "Encounter class",
-        "encounters": st.column_config.NumberColumn("Encounters", format="%d"),
-        "average_minutes": st.column_config.NumberColumn("Average minutes", format="%.1f"),
-    }
-    if is_synthetic:
-        utilization_config["total_claim_cost"] = st.column_config.NumberColumn(
-            "Synthetic claim cost", format="$%.2f"
-        )
-    else:
-        utilization = utilization.drop(columns=["total_claim_cost"])
-    st.dataframe(
-        utilization,
-        width="stretch",
-        hide_index=True,
-        column_config=utilization_config,
-    )
-
-with condition_tab:
-    st.subheader("Most prevalent coded conditions and findings")
+with story_tab:
+    st.subheader("One path from source complexity to reusable evidence")
     st.markdown(
-        '<p class="section-note">Ranked by distinct synthetic patients, not raw rows.</p>',
+        '<p class="section-note">The warehouse separates source-specific decisions '
+        "from reusable analytical logic.</p>",
         unsafe_allow_html=True,
     )
-    conditions = query(
-        """
-        SELECT
-          c.description,
-          c.code,
-          COUNT(*) AS episodes,
-          COUNT(DISTINCT f.patient_key) AS patients,
-          COUNT(*) FILTER (WHERE f.resolved_date IS NULL) AS unresolved
-        FROM warehouse.fact_condition f
-        JOIN warehouse.dim_code c ON c.code_key = f.code_key
-        GROUP BY c.description, c.code
-        ORDER BY patients DESC, episodes DESC
-        LIMIT 25
-        """
+    flow_columns = st.columns(4)
+    flow_cards = (
+        ("01", "Validate", "Required files and columns are checked before the database changes."),
+        ("02", "Harmonize", "Source adapters translate identifiers, diagnoses, labs, and dates."),
+        ("03", "Prove quality", "Parity, relationships, date ordering, and ETL failures are measured."),
+        ("04", "Build cohorts", "Researchers filter connected patient histories and export results."),
     )
-    st.bar_chart(
-        conditions.head(12).set_index("description")[["patients"]],
-        color="#247a66",
-        horizontal=True,
-    )
-    st.dataframe(conditions, width="stretch", hide_index=True)
+    for column, (number, title, body) in zip(flow_columns, flow_cards, strict=True):
+        with column:
+            st.markdown(
+                f"""
+                <div class="flow-card">
+                  <span class="flow-number">{number}</span>
+                  <strong>{title}</strong>
+                  <p>{body}</p>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
 
-with observation_tab:
-    category_column, measure_column = st.columns((0.9, 1.4))
-    with category_column:
-        st.subheader("Observation mix")
-        categories = query(
+    st.write("")
+    left, right = st.columns((1.05, 1))
+    with left:
+        st.markdown("#### Source-to-warehouse mapping")
+        if is_synthetic:
+            mapping = pd.DataFrame(
+                [
+                    ("patients.csv", "Patients", "dim_patient"),
+                    ("encounters.csv", "Encounters", "fact_encounter"),
+                    ("conditions.csv", "Conditions + codes", "fact_condition"),
+                    ("observations.csv", "Observations + codes", "fact_observation"),
+                ],
+                columns=["Source files", "Normalized concept", "Warehouse target"],
+            )
+        else:
+            mapping = pd.DataFrame(
+                [
+                    ("patients", "Patient identity", "dim_patient"),
+                    ("admissions", "Hospital encounters", "fact_encounter"),
+                    ("diagnoses_icd + dictionary", "Coded diagnoses", "fact_condition"),
+                    ("labevents + dictionary", "Laboratory results", "fact_observation"),
+                ],
+                columns=["MIMIC files", "Normalized concept", "Warehouse target"],
+            )
+        st.dataframe(mapping, width="stretch", hide_index=True)
+
+    with right:
+        st.markdown("#### What becomes reusable")
+        st.markdown(
+            """
+            - Stable patient and encounter keys across every analysis
+            - Descriptions resolved from ICD and laboratory dictionaries
+            - Numeric and text results stored without mixing their meaning
+            - A shared calendar for consistent time-based queries
+            - Durable ETL history and visible quality warnings
+            - The same downstream queries across Synthea and MIMIC
+            """
+        )
+
+with cohort_tab:
+    st.subheader("Define an analysis-ready cohort")
+    st.markdown(
+        '<p class="section-note">Filters operate across normalized demographics, '
+        "admissions, diagnoses, and laboratory histories—not isolated CSV files.</p>",
+        unsafe_allow_html=True,
+    )
+
+    filter_values = query(
+        """
+        SELECT 'sex' AS filter_name, COALESCE(sex_at_birth, 'Unknown') AS value
+        FROM warehouse.dim_patient
+        UNION
+        SELECT 'race', COALESCE(race, 'Unknown')
+        FROM warehouse.dim_patient
+        UNION
+        SELECT 'encounter_class', COALESCE(encounter_class, 'Unknown')
+        FROM warehouse.fact_encounter
+        ORDER BY filter_name, value
+        """
+    )
+    sex_options = filter_values.loc[
+        filter_values["filter_name"] == "sex", "value"
+    ].tolist()
+    race_options = filter_values.loc[
+        filter_values["filter_name"] == "race", "value"
+    ].tolist()
+    encounter_options = filter_values.loc[
+        filter_values["filter_name"] == "encounter_class", "value"
+    ].tolist()
+
+    filter_one, filter_two, filter_three = st.columns(3)
+    selected_sexes = filter_one.multiselect("Sex", sex_options)
+    selected_races = filter_two.multiselect("Race / ethnicity label", race_options)
+    selected_encounters = filter_three.multiselect("Admission / encounter type", encounter_options)
+
+    filter_four, filter_five = st.columns((1, 2))
+    minimum_encounters = filter_four.number_input(
+        "Minimum encounters",
+        min_value=0,
+        max_value=max(int(counts["encounters"]), 1),
+        value=1,
+        step=1,
+    )
+    diagnosis_search = filter_five.text_input(
+        "Diagnosis contains",
+        placeholder="Example: diabetes, heart failure, hypertension",
+    ).strip()
+
+    predicates = ["COALESCE(es.encounters, 0) >= %s"]
+    params: list[object] = [int(minimum_encounters)]
+    if selected_sexes:
+        predicates.append("COALESCE(p.sex_at_birth, 'Unknown') = ANY(%s)")
+        params.append(selected_sexes)
+    if selected_races:
+        predicates.append("COALESCE(p.race, 'Unknown') = ANY(%s)")
+        params.append(selected_races)
+    if selected_encounters:
+        predicates.append(
+            """
+            EXISTS (
+                SELECT 1
+                FROM warehouse.fact_encounter selected_e
+                WHERE selected_e.patient_key = p.patient_key
+                  AND COALESCE(selected_e.encounter_class, 'Unknown') = ANY(%s)
+            )
+            """
+        )
+        params.append(selected_encounters)
+    if diagnosis_search:
+        predicates.append(
+            """
+            EXISTS (
+                SELECT 1
+                FROM warehouse.fact_condition selected_f
+                JOIN warehouse.dim_code selected_c
+                  ON selected_c.code_key = selected_f.code_key
+                WHERE selected_f.patient_key = p.patient_key
+                  AND selected_c.description ILIKE %s
+            )
+            """
+        )
+        params.append(f"%{diagnosis_search}%")
+
+    cohort_statement = f"""
+        WITH encounter_summary AS (
+            SELECT
+                patient_key,
+                COUNT(*) AS encounters,
+                MIN(start_at)::date AS first_encounter,
+                MAX(start_at)::date AS last_encounter
+            FROM warehouse.fact_encounter
+            GROUP BY patient_key
+        ),
+        condition_summary AS (
+            SELECT patient_key, COUNT(*) AS diagnoses
+            FROM warehouse.fact_condition
+            GROUP BY patient_key
+        ),
+        observation_summary AS (
+            SELECT patient_key, COUNT(*) AS observations
+            FROM warehouse.fact_observation
+            GROUP BY patient_key
+        )
+        SELECT
+            p.source_patient_id AS patient_id,
+            COALESCE(p.sex_at_birth, 'Unknown') AS sex,
+            COALESCE(p.race, 'Unknown') AS race,
+            CASE
+                WHEN es.first_encounter IS NULL THEN NULL
+                ELSE DATE_PART('year', AGE(es.first_encounter, p.birth_date))::integer
+            END AS approximate_age_at_first_encounter,
+            COALESCE(es.encounters, 0) AS encounters,
+            COALESCE(cs.diagnoses, 0) AS diagnoses,
+            COALESCE(os.observations, 0) AS observations,
+            es.first_encounter,
+            es.last_encounter
+        FROM warehouse.dim_patient p
+        LEFT JOIN encounter_summary es USING (patient_key)
+        LEFT JOIN condition_summary cs USING (patient_key)
+        LEFT JOIN observation_summary os USING (patient_key)
+        WHERE {" AND ".join(predicates)}
+        ORDER BY encounters DESC, diagnoses DESC, patient_id
+    """
+    cohort = query_with_params(cohort_statement, tuple(params))
+
+    cohort_metrics = st.columns(4)
+    cohort_metrics[0].metric("Patients in cohort", format_count(len(cohort)))
+    cohort_metrics[1].metric(
+        "Share of source population",
+        f"{(100 * len(cohort) / max(int(counts['patients']), 1)):.1f}%",
+    )
+    cohort_metrics[2].metric(
+        "Admissions / encounters",
+        format_count(int(cohort["encounters"].sum()) if not cohort.empty else 0),
+    )
+    cohort_metrics[3].metric(
+        "Clinical observations",
+        format_count(int(cohort["observations"].sum()) if not cohort.empty else 0),
+    )
+
+    if cohort.empty:
+        st.info("No patients match this combination. Broaden one or more filters.")
+    else:
+        st.dataframe(
+            cohort,
+            width="stretch",
+            hide_index=True,
+            column_config={
+                "patient_id": "Deidentified patient ID",
+                "approximate_age_at_first_encounter": "Approx. age at first encounter",
+                "first_encounter": "First encounter",
+                "last_encounter": "Last encounter",
+            },
+        )
+        st.download_button(
+            "Download cohort CSV",
+            cohort.to_csv(index=False).encode("utf-8"),
+            file_name=f"{source_label.lower().replace(' ', '-')}-cohort.csv",
+            mime="text/csv",
+            help="Exports deidentified patient-level summaries from the selected cohort.",
+        )
+
+    st.markdown(
+        '<p class="trust-note"><strong>Interpretation boundary:</strong> MIMIC dates '
+        "are shifted and birth dates are approximated from anchor age. Use cohort "
+        "results to evaluate data-engineering behavior, not calendar trends or "
+        "clinical effectiveness.</p>",
+        unsafe_allow_html=True,
+    )
+
+with patterns_tab:
+    condition_column, lab_column = st.columns(2)
+    with condition_column:
+        st.subheader("Conditions represented")
+        conditions = query(
             """
             SELECT
-              REPLACE(c.code_system, 'urn:synthea:observation:', '') AS category,
-              COUNT(*) AS observations
-            FROM warehouse.fact_observation f
+              c.description,
+              c.code,
+              COUNT(*) AS episodes,
+              COUNT(DISTINCT f.patient_key) AS patients
+            FROM warehouse.fact_condition f
             JOIN warehouse.dim_code c ON c.code_key = f.code_key
-            GROUP BY category
-            ORDER BY observations DESC
+            GROUP BY c.description, c.code
+            ORDER BY patients DESC, episodes DESC
+            LIMIT 20
             """
         )
         st.bar_chart(
-            categories.set_index("category"),
-            color="#5c8fc4",
+            conditions.head(10).set_index("description")[["patients"]],
+            color="#1e7c64",
             horizontal=True,
         )
+        st.dataframe(conditions, width="stretch", hide_index=True)
 
-    with measure_column:
-        st.subheader("Most frequent numeric measurements")
+    with lab_column:
+        st.subheader("Laboratory measurements represented")
         measurements = query(
             """
             SELECT
@@ -324,36 +593,55 @@ with observation_tab:
             LIMIT 20
             """
         )
+        st.bar_chart(
+            measurements.head(10).set_index("description")[["measurements"]],
+            color="#5885b8",
+            horizontal=True,
+        )
         st.dataframe(measurements, width="stretch", hide_index=True)
 
-    st.subheader("Observation timeline")
-    monthly = query(
-        """
-        SELECT
-          MAKE_DATE(d.calendar_year, 1, 1) AS year,
-          COUNT(*) AS observations
-        FROM warehouse.fact_observation
-        JOIN warehouse.dim_date d
-          ON d.date_key = observation_date_key
-        GROUP BY year
-        ORDER BY year
-        """
-    )
-    st.line_chart(monthly.set_index("year"), color="#247a66")
+    utilization_left, utilization_right = st.columns((1.1, 1))
+    with utilization_left:
+        st.subheader("Encounter mix")
+        encounter_classes = query(
+            """
+            SELECT COALESCE(encounter_class, 'Unknown') AS encounter_class,
+                   COUNT(*) AS encounters
+            FROM warehouse.fact_encounter
+            GROUP BY COALESCE(encounter_class, 'Unknown')
+            ORDER BY encounters DESC
+            """
+        )
+        st.bar_chart(
+            encounter_classes.set_index("encounter_class"),
+            color="#f2b84b",
+            horizontal=True,
+        )
+    with utilization_right:
+        st.subheader("Dataset coverage")
+        demographics = query(
+            """
+            SELECT COALESCE(race, 'Unknown') AS race, COUNT(*) AS patients
+            FROM warehouse.dim_patient
+            GROUP BY COALESCE(race, 'Unknown')
+            ORDER BY patients DESC
+            """
+        )
+        st.bar_chart(demographics.set_index("race"), color="#72bda3")
 
-with quality_tab:
-    st.subheader("Data-quality report")
+with trust_tab:
+    st.subheader("Evidence that the warehouse is safe to analyze")
     st.markdown(
-        '<p class="section-note">Structural checks run directly against staging and '
-        "warehouse tables. Warnings remain visible rather than being silently removed.</p>",
+        '<p class="section-note">Checks run against the live staging and warehouse '
+        "tables. Warnings remain visible instead of being silently discarded.</p>",
         unsafe_allow_html=True,
     )
     quality = quality_results()
     status_counts = quality["status"].value_counts()
     status_columns = st.columns(3)
     status_columns[0].metric("Passed", int(status_counts.get("PASS", 0)))
-    status_columns[1].metric("Warnings", int(status_counts.get("WARN", 0)))
-    status_columns[2].metric("Failures", int(status_counts.get("FAIL", 0)))
+    status_columns[1].metric("Warnings to review", int(status_counts.get("WARN", 0)))
+    status_columns[2].metric("Blocking failures", int(status_counts.get("FAIL", 0)))
     st.dataframe(
         quality,
         width="stretch",
@@ -367,10 +655,36 @@ with quality_tab:
         },
     )
 
-with pipeline_tab:
-    st.subheader("ETL run history")
+    provenance_left, provenance_right = st.columns(2)
+    with provenance_left:
+        st.markdown("#### Provenance")
+        st.write(f"**Active source:** {source_display}")
+        st.write(f"**Last loaded:** {counts['loaded_at']}")
+        if not is_synthetic:
+            st.markdown(
+                "**Citation:** Johnson et al. (2023), MIMIC-IV Clinical Database "
+                "Demo v2.2, PhysioNet. DOI: 10.13026/dp1f-ex47."
+            )
+    with provenance_right:
+        st.markdown("#### Known limitations")
+        if is_synthetic:
+            st.markdown(
+                "- Generated records are not observations of real patients.\n"
+                "- Findings demonstrate pipeline behavior, not population evidence."
+            )
+        else:
+            st.markdown(
+                "- The demo contains only 100 deidentified patients.\n"
+                "- Dates are shifted and direct birth dates are unavailable.\n"
+                "- Diagnosis onset is approximated from admission time.\n"
+                "- Free-text clinical notes are not included."
+            )
+
+with runs_tab:
+    st.subheader("Auditable transformation history")
     st.markdown(
-        '<p class="section-note">A durable audit trail of each warehouse transformation.</p>',
+        '<p class="section-note">Every warehouse entity records rows read, rows loaded, '
+        "completion state, and failures for reproducibility.</p>",
         unsafe_allow_html=True,
     )
     runs = query(
@@ -395,4 +709,6 @@ if st.sidebar.button("Refresh warehouse data", width="stretch"):
     st.cache_data.clear()
     st.rerun()
 
-st.sidebar.caption(f"PostgreSQL • {source_display}")
+st.sidebar.markdown("### Clinical Data Trust Lab")
+st.sidebar.caption(f"Active source: {source_display}")
+st.sidebar.caption("Validated • Harmonized • Auditable")

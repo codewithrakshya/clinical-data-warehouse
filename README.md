@@ -22,6 +22,8 @@ PostgreSQL, [Synthea](https://synthea.mitre.org/), and the openly available
   warehouse relationships, and records durable ETL audit history.
 - Publishes structural quality checks that distinguish failures from reviewable
   warnings instead of silently discarding questionable source records.
+- Provides an interactive cohort builder across demographics, encounter types,
+  diagnosis text, and utilization thresholds with deidentified CSV export.
 - Runs locally with Docker and in the cloud with Neon PostgreSQL, Streamlit
   Community Cloud, and GitHub Actions CI.
 
@@ -318,6 +320,6 @@ silently removed.
   - [x] Condition fact
   - [x] Observation fact
 - [x] Add end-to-end data-quality reports
-- [x] Add analytical dashboard queries
+- [x] Add problem-focused analytics and an interactive cohort explorer
 - [x] Add a Streamlit dashboard
 - [x] Add GitHub Actions CI

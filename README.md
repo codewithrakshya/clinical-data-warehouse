@@ -6,6 +6,9 @@ PostgreSQL, [Synthea](https://synthea.mitre.org/), and the openly available
 
 [**Explore the live Clinical Warehouse dashboard →**](https://rakshya-clinical-warehouse.streamlit.app/)
 
+**New to the project?** Read
+[what it solves, why it exists, who it benefits, and how it works](docs/project-overview.md).
+
 > The live project uses the deidentified MIMIC-IV Demo. It is not designed or
 > approved for protected health information (PHI). Never commit credentials or
 > exports from a clinical system.

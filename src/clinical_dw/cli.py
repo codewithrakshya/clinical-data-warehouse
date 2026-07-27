@@ -13,6 +13,7 @@ from clinical_dw.staging import load_staging
 from clinical_dw.validation import validate_directory
 from clinical_dw.warehouse import (
     load_condition_fact,
+    load_date_dimension,
     load_encounter_fact,
     load_observation_fact,
     load_patient_dimension,
@@ -65,6 +66,14 @@ def build_parser() -> argparse.ArgumentParser:
         "load-observations", help="transform staged observations into the warehouse"
     )
     observations.add_argument(
+        "--database-url",
+        default=os.getenv("DATABASE_URL", DEFAULT_DATABASE_URL),
+    )
+
+    dates = subparsers.add_parser(
+        "load-dates", help="build the shared calendar and connect fact date keys"
+    )
+    dates.add_argument(
         "--database-url",
         default=os.getenv("DATABASE_URL", DEFAULT_DATABASE_URL),
     )
@@ -133,6 +142,12 @@ def main() -> int:
         with psycopg.connect(args.database_url) as connection:
             rows_read, rows_loaded = load_observation_fact(connection)
         print(f"LOADED warehouse.fact_observation rows_read={rows_read} rows_loaded={rows_loaded}")
+        return 0
+
+    if args.command == "load-dates":
+        with psycopg.connect(args.database_url) as connection:
+            rows_read, rows_loaded = load_date_dimension(connection)
+        print(f"LOADED warehouse.dim_date rows_read={rows_read} rows_loaded={rows_loaded}")
         return 0
 
     if args.command == "quality":

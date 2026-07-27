@@ -10,6 +10,7 @@ from clinical_dw.quality import QualityCheck, run_quality_checks
 from clinical_dw.staging import load_staging
 from clinical_dw.warehouse import (
     load_condition_fact,
+    load_date_dimension,
     load_encounter_fact,
     load_observation_fact,
     load_patient_dimension,
@@ -33,6 +34,7 @@ def run_pipeline(input_dir: Path, connection: Connection) -> PipelineResult:
     _, warehouse_counts["fact_encounter"] = load_encounter_fact(connection)
     _, warehouse_counts["fact_condition"] = load_condition_fact(connection)
     _, warehouse_counts["fact_observation"] = load_observation_fact(connection)
+    _, warehouse_counts["dim_date"] = load_date_dimension(connection)
 
     return PipelineResult(
         staging_counts=staging_counts,

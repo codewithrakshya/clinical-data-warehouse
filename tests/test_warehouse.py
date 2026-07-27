@@ -2,6 +2,8 @@ import unittest
 from datetime import date
 
 from clinical_dw.warehouse import (
+    build_date_records,
+    date_key,
     transform_condition,
     transform_encounter,
     transform_observation,
@@ -10,6 +12,21 @@ from clinical_dw.warehouse import (
 
 
 class WarehouseTests(unittest.TestCase):
+    def test_date_key_uses_yyyymmdd_format(self) -> None:
+        self.assertEqual(date_key(date(2026, 1, 2)), 20260102)
+
+    def test_build_date_records_includes_range_boundaries(self) -> None:
+        records = build_date_records(date(2025, 12, 31), date(2026, 1, 2))
+
+        self.assertEqual(len(records), 3)
+        self.assertEqual(records[0].date_key, 20251231)
+        self.assertEqual(records[-1].date_key, 20260102)
+        self.assertEqual(records[-1].day_of_week, 5)
+
+    def test_build_date_records_rejects_reversed_range(self) -> None:
+        with self.assertRaisesRegex(ValueError, "end must not precede start"):
+            build_date_records(date(2026, 1, 2), date(2026, 1, 1))
+
     def test_transform_patient_converts_dates_and_blank_optionals(self) -> None:
         record = transform_patient(
             (

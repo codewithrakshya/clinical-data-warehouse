@@ -1,7 +1,7 @@
 """Transform validated staging rows into analytics-ready warehouse tables."""
 
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 
 from psycopg import Connection
@@ -26,6 +26,16 @@ class PatientRecord:
     city: str | None
     state: str | None
     postal_code: str | None
+
+
+@dataclass(frozen=True)
+class DateRecord:
+    date_key: int
+    full_date: date
+    calendar_year: int
+    calendar_month: int
+    day_of_month: int
+    day_of_week: int
 
 
 @dataclass(frozen=True)
@@ -62,6 +72,33 @@ class ObservationRecord:
     value_numeric: Decimal | None
     value_text: str | None
     unit: str | None
+
+
+def date_key(value: date) -> int:
+    """Return the conventional YYYYMMDD integer key for a calendar date."""
+    return value.year * 10_000 + value.month * 100 + value.day
+
+
+def build_date_records(start_date: date, end_date: date) -> list[DateRecord]:
+    """Build one dimension row for every day in an inclusive date range."""
+    if end_date < start_date:
+        raise ValueError("date dimension end must not precede start")
+
+    records = []
+    current_date = start_date
+    while current_date <= end_date:
+        records.append(
+            DateRecord(
+                date_key=date_key(current_date),
+                full_date=current_date,
+                calendar_year=current_date.year,
+                calendar_month=current_date.month,
+                day_of_month=current_date.day,
+                day_of_week=current_date.isoweekday(),
+            )
+        )
+        current_date += timedelta(days=1)
+    return records
 
 
 def transform_patient(row: tuple[str | None, ...]) -> PatientRecord:
@@ -317,6 +354,141 @@ def load_patient_dimension(connection: Connection) -> tuple[int, int]:
         raise
 
     return len(source_rows), len(records)
+
+
+def load_date_dimension(connection: Connection) -> tuple[int, int]:
+    """Populate the shared calendar and attach date keys to clinical facts."""
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            INSERT INTO warehouse.etl_run (source_name, status)
+            VALUES ('warehouse.clinical_dates', 'running')
+            RETURNING etl_run_id
+            """
+        )
+        etl_run_id = cursor.fetchone()[0]
+    connection.commit()
+
+    try:
+        with connection.transaction(), connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT MIN(event_date), MAX(event_date)
+                FROM (
+                    SELECT birth_date AS event_date FROM warehouse.dim_patient
+                    UNION ALL
+                    SELECT death_date FROM warehouse.dim_patient
+                    UNION ALL
+                    SELECT (start_at AT TIME ZONE 'UTC')::date
+                    FROM warehouse.fact_encounter
+                    UNION ALL
+                    SELECT (stop_at AT TIME ZONE 'UTC')::date
+                    FROM warehouse.fact_encounter
+                    UNION ALL
+                    SELECT onset_date FROM warehouse.fact_condition
+                    UNION ALL
+                    SELECT resolved_date FROM warehouse.fact_condition
+                    UNION ALL
+                    SELECT (observed_at AT TIME ZONE 'UTC')::date
+                    FROM warehouse.fact_observation
+                ) clinical_dates
+                WHERE event_date IS NOT NULL
+                """
+            )
+            start_date, end_date = cursor.fetchone()
+            records = (
+                build_date_records(start_date, end_date)
+                if start_date is not None and end_date is not None
+                else []
+            )
+
+            cursor.executemany(
+                """
+                INSERT INTO warehouse.dim_date (
+                    date_key,
+                    full_date,
+                    calendar_year,
+                    calendar_month,
+                    day_of_month,
+                    day_of_week
+                )
+                VALUES (%s, %s, %s, %s, %s, %s)
+                ON CONFLICT (date_key) DO UPDATE SET
+                    full_date = EXCLUDED.full_date,
+                    calendar_year = EXCLUDED.calendar_year,
+                    calendar_month = EXCLUDED.calendar_month,
+                    day_of_month = EXCLUDED.day_of_month,
+                    day_of_week = EXCLUDED.day_of_week
+                """,
+                [
+                    (
+                        record.date_key,
+                        record.full_date,
+                        record.calendar_year,
+                        record.calendar_month,
+                        record.day_of_month,
+                        record.day_of_week,
+                    )
+                    for record in records
+                ],
+            )
+
+            cursor.execute(
+                """
+                UPDATE warehouse.fact_encounter
+                SET start_date_key =
+                        TO_CHAR(start_at AT TIME ZONE 'UTC', 'YYYYMMDD')::integer,
+                    stop_date_key = CASE
+                        WHEN stop_at IS NULL THEN NULL
+                        ELSE TO_CHAR(stop_at AT TIME ZONE 'UTC', 'YYYYMMDD')::integer
+                    END
+                """
+            )
+            cursor.execute(
+                """
+                UPDATE warehouse.fact_condition
+                SET onset_date_key = TO_CHAR(onset_date, 'YYYYMMDD')::integer,
+                    resolved_date_key = CASE
+                        WHEN resolved_date IS NULL THEN NULL
+                        ELSE TO_CHAR(resolved_date, 'YYYYMMDD')::integer
+                    END
+                """
+            )
+            cursor.execute(
+                """
+                UPDATE warehouse.fact_observation
+                SET observation_date_key =
+                    TO_CHAR(observed_at AT TIME ZONE 'UTC', 'YYYYMMDD')::integer
+                """
+            )
+            cursor.execute(
+                """
+                UPDATE warehouse.etl_run
+                SET completed_at = NOW(),
+                    status = 'succeeded',
+                    rows_read = %s,
+                    rows_loaded = %s
+                WHERE etl_run_id = %s
+                """,
+                (len(records), len(records), etl_run_id),
+            )
+    except Exception as exc:
+        connection.rollback()
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                UPDATE warehouse.etl_run
+                SET completed_at = NOW(),
+                    status = 'failed',
+                    error_message = %s
+                WHERE etl_run_id = %s
+                """,
+                (str(exc)[:2000], etl_run_id),
+            )
+        connection.commit()
+        raise
+
+    return len(records), len(records)
 
 
 def load_encounter_fact(connection: Connection) -> tuple[int, int]:

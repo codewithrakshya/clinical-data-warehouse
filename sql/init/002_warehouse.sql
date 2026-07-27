@@ -78,11 +78,33 @@ CREATE TABLE IF NOT EXISTS warehouse.fact_observation (
     CHECK (value_numeric IS NOT NULL OR value_text IS NOT NULL)
 );
 
+ALTER TABLE warehouse.fact_encounter
+  ADD COLUMN IF NOT EXISTS start_date_key INTEGER
+    REFERENCES warehouse.dim_date(date_key);
+ALTER TABLE warehouse.fact_encounter
+  ADD COLUMN IF NOT EXISTS stop_date_key INTEGER
+    REFERENCES warehouse.dim_date(date_key);
+ALTER TABLE warehouse.fact_condition
+  ADD COLUMN IF NOT EXISTS onset_date_key INTEGER
+    REFERENCES warehouse.dim_date(date_key);
+ALTER TABLE warehouse.fact_condition
+  ADD COLUMN IF NOT EXISTS resolved_date_key INTEGER
+    REFERENCES warehouse.dim_date(date_key);
+ALTER TABLE warehouse.fact_observation
+  ADD COLUMN IF NOT EXISTS observation_date_key INTEGER
+    REFERENCES warehouse.dim_date(date_key);
+
 CREATE INDEX IF NOT EXISTS idx_encounter_patient
   ON warehouse.fact_encounter(patient_key);
+CREATE INDEX IF NOT EXISTS idx_encounter_start_date
+  ON warehouse.fact_encounter(start_date_key);
 CREATE INDEX IF NOT EXISTS idx_condition_patient
   ON warehouse.fact_condition(patient_key);
+CREATE INDEX IF NOT EXISTS idx_condition_onset_date
+  ON warehouse.fact_condition(onset_date_key);
 CREATE INDEX IF NOT EXISTS idx_observation_patient
   ON warehouse.fact_observation(patient_key);
 CREATE INDEX IF NOT EXISTS idx_observation_date
   ON warehouse.fact_observation(observed_at);
+CREATE INDEX IF NOT EXISTS idx_observation_date_key
+  ON warehouse.fact_observation(observation_date_key);

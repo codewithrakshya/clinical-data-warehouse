@@ -60,6 +60,15 @@ def run_quality_checks(connection: Connection) -> list[QualityCheck]:
              LEFT JOIN warehouse.dim_patient p ON p.patient_key = f.patient_key
              LEFT JOIN warehouse.dim_code c ON c.code_key = f.code_key
              WHERE p.patient_key IS NULL OR c.code_key IS NULL)
+          + (SELECT COUNT(*) FROM warehouse.fact_encounter f
+             LEFT JOIN warehouse.dim_date d ON d.date_key = f.start_date_key
+             WHERE d.date_key IS NULL)
+          + (SELECT COUNT(*) FROM warehouse.fact_condition f
+             LEFT JOIN warehouse.dim_date d ON d.date_key = f.onset_date_key
+             WHERE d.date_key IS NULL)
+          + (SELECT COUNT(*) FROM warehouse.fact_observation f
+             LEFT JOIN warehouse.dim_date d ON d.date_key = f.observation_date_key
+             WHERE d.date_key IS NULL)
         """,
     )
     checks.append(
@@ -68,7 +77,7 @@ def run_quality_checks(connection: Connection) -> list[QualityCheck]:
             status="PASS" if broken_links == 0 else "FAIL",
             value=broken_links,
             expected="0",
-            detail="Every fact must resolve to its required patient and code dimensions.",
+            detail="Every fact must resolve to its required patient, code, and date dimensions.",
         )
     )
 

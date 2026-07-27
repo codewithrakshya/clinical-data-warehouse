@@ -292,9 +292,11 @@ with observation_tab:
     monthly = query(
         """
         SELECT
-          DATE_TRUNC('year', observed_at)::date AS year,
+          MAKE_DATE(d.calendar_year, 1, 1) AS year,
           COUNT(*) AS observations
         FROM warehouse.fact_observation
+        JOIN warehouse.dim_date d
+          ON d.date_key = observation_date_key
         GROUP BY year
         ORDER BY year
         """

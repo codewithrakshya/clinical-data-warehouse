@@ -268,8 +268,9 @@ analysts.
 2. **Transformations:** inspect `src/clinical_dw/transforms.py`.
 3. **Warehouse grain:** read `sql/init/002_warehouse.sql`.
 4. **Quality checks:** run `pytest -v`.
-5. **Next milestone:** populate the remaining dimensions and facts
-   transactionally.
+5. **Calendar analysis:** inspect `load_date_dimension` in
+   `src/clinical_dw/warehouse.py` to see how event dates receive reusable
+   `YYYYMMDD` keys.
 
 ## Repository layout
 
@@ -291,10 +292,10 @@ analysts.
 - [x] Add Synthea source contracts and validation
 - [x] Add unit-tested transformation helpers
 - [x] Load CSVs into staging tables
-- [ ] Build dimensions and facts transactionally
+- [x] Build dimensions and facts transactionally
   - [x] Patient dimension
   - [x] Code dimension
-  - [ ] Date dimension
+  - [x] Date dimension
   - [x] Encounter fact
   - [x] Condition fact
   - [x] Observation fact

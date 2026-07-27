@@ -20,6 +20,12 @@ import pandas as pd
 DATASET_ID = "hfr9-rurv"
 API_URL = f"https://data.cdc.gov/resource/{DATASET_ID}.csv"
 PAGE_SIZE = 50_000
+SNAPSHOT_PATH = (
+    Path(__file__).resolve().parents[2]
+    / "data"
+    / "brain_health"
+    / "cdc_cognitive_decline_snapshot.csv.gz"
+)
 
 REQUIRED_COLUMNS = {
     "rowid",
@@ -141,6 +147,36 @@ def fetch_cdc_aging_frame(
     if not pages:
         raise ValueError("CDC API returned no rows for the selected query")
     return normalize_cdc_aging(pd.concat(pages, ignore_index=True))
+
+
+def load_cdc_aging_snapshot(snapshot_path: Path = SNAPSHOT_PATH) -> pd.DataFrame:
+    """Load the committed, normalized CDC fallback used during API outages."""
+    if not snapshot_path.exists():
+        raise FileNotFoundError(f"CDC fallback snapshot not found: {snapshot_path}")
+
+    snapshot = pd.read_csv(snapshot_path, low_memory=False)
+    missing = sorted(set(OUTPUT_COLUMNS) - set(snapshot.columns))
+    if missing:
+        raise ValueError(f"CDC fallback snapshot is missing columns: {', '.join(missing)}")
+
+    for column in ("year_start", "year_end"):
+        snapshot[column] = pd.to_numeric(snapshot[column], errors="coerce").astype("Int64")
+    for column in ("estimate", "confidence_low", "confidence_high", "confidence_width"):
+        snapshot[column] = pd.to_numeric(snapshot[column], errors="coerce")
+    snapshot["estimate_available"] = snapshot["estimate"].notna()
+    return snapshot[[*OUTPUT_COLUMNS, "confidence_width", "estimate_available"]]
+
+
+def fetch_cdc_aging_with_fallback(
+    *,
+    where: str | None = None,
+    snapshot_path: Path = SNAPSHOT_PATH,
+) -> tuple[pd.DataFrame, str]:
+    """Prefer the live CDC API and transparently fall back to a versioned snapshot."""
+    try:
+        return fetch_cdc_aging_frame(where=where), "Live CDC API"
+    except (OSError, ValueError):
+        return load_cdc_aging_snapshot(snapshot_path), "Versioned CDC fallback snapshot"
 
 
 def download_cdc_aging(

@@ -1,0 +1,9 @@
+{
+  "dataset_id": "hfr9-rurv",
+  "dataset_name": "CDC Alzheimer's Disease and Healthy Aging Data",
+  "downloaded_on": "2026-07-27",
+  "filter": "class='Cognitive Decline'",
+  "format": "normalized CSV compressed with gzip",
+  "purpose": "Read-only dashboard fallback when the live CDC API is unavailable",
+  "source_url": "https://data.cdc.gov/resource/hfr9-rurv.csv"
+}

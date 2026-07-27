@@ -273,6 +273,33 @@ Never commit the hosted connection string or `.streamlit/secrets.toml`.
 `requirements.txt` installs this project and its dashboard dependencies in
 Streamlit Community Cloud.
 
+### Secure the deployed dashboard with a read-only Neon role
+
+The ETL pipeline needs the owner account because it creates and replaces tables.
+The public Streamlit dashboard only runs `SELECT` queries and must use a separate
+least-privilege account.
+
+1. Open the Neon SQL Editor as `neondb_owner`.
+2. Open [`sql/security/create_streamlit_reader.sql`](sql/security/create_streamlit_reader.sql).
+3. Replace the example password with a long, unique generated password and run
+   the statements once.
+4. In Streamlit Community Cloud, open the app's **Settings → Secrets**.
+5. Replace `DATABASE_URL` with the Neon connection string using
+   `streamlit_reader` and its new password.
+6. Reboot the app. Under **Trust & provenance → Deployment safety**, confirm
+   that the dashboard reports a read-only database session.
+
+Keep the owner connection string only in a local environment variable when
+running ETL. Never place it in Streamlit Secrets.
+
+### Resilient CDC access
+
+The brain-health explorer prefers the live CDC API. If the API times out or is
+unavailable, it automatically uses the committed, compressed cognitive-decline
+snapshot and displays a visible fallback label. Snapshot provenance is recorded
+in
+[`data/brain_health/cdc_cognitive_decline_snapshot.metadata.json`](data/brain_health/cdc_cognitive_decline_snapshot.metadata.json).
+
 ## Data-quality interpretation
 
 Both adapters validate source schemas before normalization. The MIMIC demo load

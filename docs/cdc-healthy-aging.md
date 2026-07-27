@@ -42,6 +42,19 @@ The command produces:
 - `cdc_healthy_aging_topic_summary.csv`: topic coverage, year range, location coverage,
   estimate availability, and median confidence-interval width.
 
+## Dashboard availability fallback
+
+The Streamlit dashboard requests current Cognitive Decline records from the CDC
+API and caches the response. If that request fails, it loads
+`data/brain_health/cdc_cognitive_decline_snapshot.csv.gz`. The snapshot contains
+normalized aggregate records only; it contains no patient-level data. Its
+dataset identifier, retrieval date, filter, and source URL are stored in the
+adjacent metadata JSON file.
+
+The interface always labels whether visitors are viewing the live API response
+or the versioned fallback. Refresh the snapshot deliberately as a reviewed
+repository update rather than changing it silently during deployment.
+
 ## Interpretation boundary
 
 These data can describe population patterns and associations. They cannot establish

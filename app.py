@@ -8,7 +8,7 @@ import psycopg
 import streamlit as st
 from streamlit.errors import StreamlitSecretNotFoundError
 
-from clinical_dw.cdc_aging import fetch_cdc_aging_frame
+from clinical_dw.cdc_aging import fetch_cdc_aging_with_fallback
 from clinical_dw.quality import run_quality_checks
 from clinical_dw.us_pointer import (
     FOLLOW_UP_YEARS,
@@ -140,6 +140,24 @@ st.markdown(
         line-height: 1.55;
         margin: 0;
       }
+      .product-card {
+        height: 100%;
+        padding: 1.35rem 1.4rem;
+        border-radius: 20px;
+        border: 1px solid #d7e4df;
+        background: linear-gradient(145deg, #ffffff, #f1f8f5);
+        box-shadow: 0 10px 28px rgba(31, 66, 57, .07);
+      }
+      .product-card .product-number {
+        color: #1e7c64;
+        font-size: .75rem;
+        font-weight: 800;
+        letter-spacing: .12em;
+        text-transform: uppercase;
+      }
+      .product-card h3 { color: #174f42; margin: .45rem 0 .55rem; }
+      .product-card p { color: #5b6f68; line-height: 1.55; margin: 0 0 .8rem; }
+      .product-card strong { color: #29483f; }
       .flow-number {
         display: inline-flex;
         width: 1.85rem;
@@ -262,8 +280,8 @@ def quality_results() -> pd.DataFrame:
 
 
 @st.cache_data(ttl=3600)
-def cognitive_decline_data() -> pd.DataFrame:
-    return fetch_cdc_aging_frame(where="class='Cognitive Decline'")
+def cognitive_decline_data() -> tuple[pd.DataFrame, str]:
+    return fetch_cdc_aging_with_fallback(where="class='Cognitive Decline'")
 
 
 def format_count(value: int) -> str:
@@ -290,7 +308,8 @@ try:
           (SELECT is_synthetic FROM warehouse.dataset_metadata WHERE metadata_id = 1)
             AS is_synthetic,
           (SELECT loaded_at FROM warehouse.dataset_metadata WHERE metadata_id = 1)
-            AS loaded_at
+            AS loaded_at,
+          current_setting('transaction_read_only') AS transaction_read_only
         """
     ).iloc[0]
 except psycopg.Error as exc:
@@ -305,6 +324,7 @@ source_label = "Unknown source" if pd.isna(counts["source_label"]) else str(coun
 source_version = "" if pd.isna(counts["source_version"]) else str(counts["source_version"]).strip()
 is_synthetic = True if pd.isna(counts["is_synthetic"]) else bool(counts["is_synthetic"])
 source_display = f"{source_label} v{source_version}" if source_version else source_label
+database_is_read_only = str(counts["transaction_read_only"]).lower() == "on"
 
 st.markdown(
     f"""
@@ -338,6 +358,42 @@ metric_columns[2].metric(
 )
 metric_columns[3].metric("Standardized codes", format_count(int(counts["codes"])))
 
+st.markdown("### Choose your starting point")
+st.markdown(
+    '<p class="section-note">This project has two connected products. Start with '
+    "patient-level data engineering or explore population and intervention evidence.</p>",
+    unsafe_allow_html=True,
+)
+product_columns = st.columns(2)
+product_cards = (
+    (
+        "Product 01",
+        "Clinical Data Warehouse",
+        "Turn incompatible clinical files into a validated, reusable research cohort.",
+        "Use: cohort builder, clinical patterns, quality checks, and pipeline provenance.",
+    ),
+    (
+        "Product 02",
+        "Brain Health Evidence Explorer",
+        "Compare published randomized evidence with CDC population-surveillance patterns.",
+        "Use: US-POINTER outcomes, demographic comparisons, geography, and uncertainty.",
+    ),
+)
+for column, (number, title, body, use) in zip(product_columns, product_cards, strict=True):
+    with column:
+        st.markdown(
+            f"""
+            <div class="product-card">
+              <span class="product-number">{number}</span>
+              <h3>{title}</h3>
+              <p>{body}</p>
+              <strong>{use}</strong>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+st.write("")
 problem_columns = st.columns(3)
 problem_cards = (
     (
@@ -842,14 +898,23 @@ with brain_tab:
             unsafe_allow_html=True,
         )
         try:
-            cdc = cognitive_decline_data()
-        except (OSError, ValueError) as exc:
+            cdc, cdc_source = cognitive_decline_data()
+        except (OSError, ValueError, FileNotFoundError) as exc:
             st.warning(
-                "The CDC API is temporarily unavailable. US-POINTER evidence remains "
-                "available because its published aggregate results are versioned locally."
+                "Neither the live CDC API nor the versioned fallback snapshot is "
+                "available. US-POINTER evidence remains accessible."
             )
             st.caption(str(exc))
         else:
+            if cdc_source == "Live CDC API":
+                st.success("Data source: live CDC API", icon="●")
+            else:
+                st.info(
+                    "The CDC API is temporarily unavailable. Showing the committed "
+                    "cognitive-decline snapshot downloaded July 27, 2026.",
+                    icon="↻",
+                )
+
             available_questions = sorted(cdc["question"].dropna().unique())
             default_question_index = next(
                 (
@@ -870,59 +935,168 @@ with brain_tab:
                 question_data["year_end"].dropna().astype(int).unique(),
                 reverse=True,
             )
-            selected_year = st.selectbox("Reporting year", years)
+            filter_year, filter_geography, filter_age = st.columns(3)
+            selected_year = filter_year.selectbox("Reporting year", years)
             year_data = question_data.loc[question_data["year_end"] == selected_year].copy()
 
-            overall_mask = year_data["stratification_1"].eq("Overall") & (
-                year_data["stratification_2"].isna() | year_data["stratification_2"].eq("Overall")
+            geography_types = {
+                "States and territories": r"[A-Z]{2}",
+                "Census regions": r"NRE|MDW|SOU|WEST",
+                "National": r"US",
+            }
+            selected_geography_type = filter_geography.selectbox(
+                "Geographic level",
+                list(geography_types),
             )
-            state_data = year_data.loc[
-                overall_mask
-                & year_data["estimate_available"]
-                & year_data["location_abbr"].str.fullmatch(r"[A-Z]{2}", na=False)
-            ].copy()
-            state_data = state_data.drop_duplicates("location_abbr")
+            geography_mask = year_data["location_abbr"].str.fullmatch(
+                geography_types[selected_geography_type],
+                na=False,
+            )
+            if selected_geography_type == "States and territories":
+                geography_mask &= ~year_data["location_abbr"].eq("US")
+            geography_data = year_data.loc[geography_mask].copy()
+            geography_options = sorted(geography_data["location"].dropna().unique())
+            selected_locations = st.multiselect(
+                "State, territory, or region",
+                geography_options,
+                placeholder="All available locations",
+                help="Leave empty to compare every available location at this geographic level.",
+            )
+            if selected_locations:
+                geography_data = geography_data.loc[
+                    geography_data["location"].isin(selected_locations)
+                ]
+
+            age_options = sorted(
+                value
+                for value in geography_data["stratification_1"].dropna().unique()
+                if value != "Overall"
+            )
+            selected_ages = filter_age.multiselect(
+                "Age group",
+                age_options,
+                default=age_options,
+            )
+            if selected_ages:
+                geography_data = geography_data.loc[
+                    geography_data["stratification_1"].isin(selected_ages)
+                ]
+
+            demographic_column, group_column = st.columns(2)
+            demographic_label = demographic_column.selectbox(
+                "Demographic comparison",
+                ["Overall", "Sex", "Race and ethnicity"],
+            )
+            category_map = {
+                "Sex": "Sex",
+                "Race and ethnicity": "Race/Ethnicity",
+            }
+            if demographic_label == "Overall":
+                demographic_data = geography_data.loc[
+                    geography_data["stratification_category_2"].isna()
+                    | geography_data["stratification_2"].eq("Overall")
+                ].copy()
+                selected_groups: list[str] = []
+                group_column.caption(
+                    "Overall compares age groups and geography without a sex or "
+                    "race/ethnicity stratum."
+                )
+            else:
+                demographic_category = category_map[demographic_label]
+                demographic_data = geography_data.loc[
+                    geography_data["stratification_category_2"].eq(demographic_category)
+                ].copy()
+                group_options = sorted(demographic_data["stratification_2"].dropna().unique())
+                selected_groups = group_column.multiselect(
+                    demographic_label,
+                    group_options,
+                    default=group_options,
+                )
+                if selected_groups:
+                    demographic_data = demographic_data.loc[
+                        demographic_data["stratification_2"].isin(selected_groups)
+                    ]
+
+            available_widths = demographic_data["confidence_width"].dropna()
+            if available_widths.empty:
+                width_data = demographic_data.copy()
+            else:
+                width_min = float(available_widths.min())
+                width_max = float(available_widths.max())
+                selected_width = st.slider(
+                    "Maximum 95% confidence-interval width",
+                    min_value=width_min,
+                    max_value=width_max,
+                    value=width_max,
+                    help="Narrower intervals represent more precise survey estimates.",
+                )
+                width_data = demographic_data.loc[
+                    demographic_data["confidence_width"].le(selected_width)
+                    | demographic_data["confidence_width"].isna()
+                ].copy()
+
+            comparison_data = width_data.loc[width_data["estimate_available"]].copy()
+            comparison_data["population_group"] = comparison_data["stratification_2"].fillna(
+                "Overall"
+            )
+            comparison_data["comparison"] = (
+                comparison_data["location"].fillna("Unknown")
+                + " · "
+                + comparison_data["stratification_1"].fillna("Overall")
+                + " · "
+                + comparison_data["population_group"]
+            )
+            comparison_data = comparison_data.drop_duplicates(
+                ["location_abbr", "stratification_1", "population_group"]
+            )
 
             population_metrics = st.columns(3)
             population_metrics[0].metric(
-                "Published estimates",
-                format_count(int(year_data["estimate_available"].sum())),
+                "Comparable estimates",
+                format_count(len(comparison_data)),
             )
             population_metrics[1].metric(
                 "Locations represented",
-                format_count(int(year_data["location_abbr"].nunique())),
+                format_count(int(comparison_data["location_abbr"].nunique())),
             )
             population_metrics[2].metric(
-                "Estimates unavailable",
-                format_count(int((~year_data["estimate_available"]).sum())),
-                help="Missing or suppressed estimates are retained as a data-quality signal.",
+                "Median CI width",
+                (
+                    f"{comparison_data['confidence_width'].median():.1f}"
+                    if comparison_data["confidence_width"].notna().any()
+                    else "Unavailable"
+                ),
+                help="Width of the published 95% confidence interval; narrower is more precise.",
             )
 
-            if state_data.empty:
+            if comparison_data.empty:
                 st.info(
-                    "This indicator/year combination has no directly comparable "
-                    "overall state estimates. Choose another reporting year or indicator."
+                    "No estimates match this combination. Broaden the geography, "
+                    "demographic, age, or confidence-width filters."
                 )
             else:
-                st.markdown("#### Highest reported state-level estimates")
-                top_states = (
-                    state_data.nlargest(15, "estimate")
-                    .set_index("location")[["estimate"]]
+                st.markdown("#### Highest reported estimates in this comparison")
+                top_comparisons = (
+                    comparison_data.nlargest(25, "estimate")
+                    .set_index("comparison")[["estimate"]]
                     .rename(columns={"estimate": "Reported estimate"})
                 )
                 st.bar_chart(
-                    top_states,
+                    top_comparisons,
                     color="#5885b8",
                     horizontal=True,
-                    x_label=str(state_data["value_unit"].dropna().iloc[0]),
+                    x_label=str(comparison_data["value_unit"].dropna().iloc[0]),
                 )
                 st.dataframe(
-                    state_data[
+                    comparison_data[
                         [
                             "location",
+                            "stratification_1",
+                            "population_group",
                             "estimate",
                             "confidence_low",
                             "confidence_high",
+                            "confidence_width",
                             "value_unit",
                         ]
                     ].sort_values("estimate", ascending=False),
@@ -930,9 +1104,12 @@ with brain_tab:
                     hide_index=True,
                     column_config={
                         "location": "Location",
+                        "stratification_1": "Age group",
+                        "population_group": demographic_label,
                         "estimate": "Estimate",
                         "confidence_low": "95% CI low",
                         "confidence_high": "95% CI high",
+                        "confidence_width": "CI width",
                         "value_unit": "Unit",
                     },
                 )
@@ -1018,6 +1195,14 @@ with trust_tab:
                 "Demo v2.2, PhysioNet. DOI: 10.13026/dp1f-ex47."
             )
     with provenance_right:
+        st.markdown("#### Deployment safety")
+        if database_is_read_only:
+            st.success("Dashboard database session is read-only.")
+        else:
+            st.warning(
+                "Dashboard database session is not read-only. Replace the Streamlit "
+                "secret with the streamlit_reader connection string."
+            )
         st.markdown("#### Known limitations")
         if is_synthetic:
             st.markdown(

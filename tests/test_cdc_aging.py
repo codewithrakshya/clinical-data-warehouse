@@ -1,11 +1,14 @@
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 import pandas as pd
 
 from clinical_dw.cdc_aging import (
     build_topic_summary,
+    fetch_cdc_aging_with_fallback,
+    load_cdc_aging_snapshot,
     normalize_cdc_aging,
     prepare_cdc_aging,
 )
@@ -92,6 +95,30 @@ class CdcAgingTests(unittest.TestCase):
             self.assertEqual((observations, topics), (2, 1))
             self.assertTrue((output_dir / "cdc_healthy_aging_observations.csv").exists())
             self.assertTrue((output_dir / "cdc_healthy_aging_topic_summary.csv").exists())
+
+    def test_normalized_snapshot_can_be_loaded(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            snapshot_path = Path(directory) / "snapshot.csv"
+            normalize_cdc_aging(raw_frame()).to_csv(snapshot_path, index=False)
+
+            snapshot = load_cdc_aging_snapshot(snapshot_path)
+
+            self.assertEqual(len(snapshot), 2)
+            self.assertEqual(snapshot.loc[0, "confidence_width"], 5.0)
+
+    def test_fallback_is_used_when_live_fetch_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            snapshot_path = Path(directory) / "snapshot.csv"
+            normalize_cdc_aging(raw_frame()).to_csv(snapshot_path, index=False)
+
+            with mock.patch(
+                "clinical_dw.cdc_aging.fetch_cdc_aging_frame",
+                side_effect=OSError("CDC unavailable"),
+            ):
+                frame, source = fetch_cdc_aging_with_fallback(snapshot_path=snapshot_path)
+
+            self.assertEqual(len(frame), 2)
+            self.assertEqual(source, "Versioned CDC fallback snapshot")
 
 
 if __name__ == "__main__":

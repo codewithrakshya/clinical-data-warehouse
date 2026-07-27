@@ -98,14 +98,39 @@ See [docs/synthea.md](docs/synthea.md) for options.
 clinical-dw validate --input-dir data/raw
 ```
 
-The first milestone implements validation and deterministic transformations.
-Database loading is the next milestone.
+### 5. Load source-shaped staging tables
 
-### 5. Run tests
+```bash
+clinical-dw load-staging --input-dir data/raw
+```
+
+The load validates all four files first, replaces the staging tables in one
+database transaction, and preserves selected source values as text. Re-running
+the command produces the same staging state instead of duplicating rows.
+
+### 6. Run tests
 
 ```bash
 pytest
 ```
+
+### 7. Build the patient dimension
+
+```bash
+clinical-dw load-patients
+```
+
+This converts staged text into typed patient records, upserts them by source
+patient ID, and writes the outcome to `warehouse.etl_run`.
+
+### 8. Build the encounter fact
+
+```bash
+clinical-dw load-encounters
+```
+
+This converts encounter timestamps and costs, resolves every source patient ID
+to a warehouse patient key, and records one fact row per healthcare visit.
 
 ## Learning path
 
@@ -113,8 +138,8 @@ pytest
 2. **Transformations:** inspect `src/clinical_dw/transforms.py`.
 3. **Warehouse grain:** read `sql/init/002_warehouse.sql`.
 4. **Quality checks:** run `pytest -v`.
-5. **Next milestone:** load validated rows into staging and populate facts and
-   dimensions transactionally.
+5. **Next milestone:** populate the remaining dimensions and facts
+   transactionally.
 
 ## Repository layout
 
@@ -135,8 +160,12 @@ pytest
 - [x] Create PostgreSQL staging and warehouse schemas
 - [x] Add Synthea source contracts and validation
 - [x] Add unit-tested transformation helpers
-- [ ] Load CSVs into staging tables
+- [x] Load CSVs into staging tables
 - [ ] Build dimensions and facts transactionally
+  - [x] Patient dimension
+  - [ ] Code and date dimensions
+  - [x] Encounter fact
+  - [ ] Condition and observation facts
 - [ ] Add end-to-end data-quality tests
 - [ ] Add analytical SQL examples
 - [ ] Add a Streamlit dashboard

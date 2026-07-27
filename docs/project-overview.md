@@ -5,7 +5,9 @@
 The Clinical Data Trust Lab turns differently structured clinical datasets
 into one validated, auditable warehouse so researchers can define cohorts and
 explore the available data without rebuilding source-specific cleaning and
-joining logic for every question.
+joining logic for every question. Its connected Brain Health Evidence Explorer
+also places randomized US-POINTER findings beside CDC surveillance patterns
+without treating the two evidence designs as interchangeable.
 
 ## What problem does it solve?
 
@@ -85,6 +87,13 @@ assumptions are stated explicitly.
 The schema is smaller than OMOP CDM or a complete FHIR platform. That makes the
 source mappings, transformations, SQL tables, quality checks, and interface
 practical to inspect from end to end.
+
+### 6. Different evidence types remain different products
+
+Patient-level clinical records populate the warehouse. CDC surveillance
+estimates and US-POINTER publication-level outcomes remain in separate
+aggregate evidence services. The interface labels randomized versus
+observational evidence and states what each source can support.
 
 ## Who is it for?
 
@@ -303,6 +312,24 @@ Synthea generates realistic but synthetic patient histories. It remains the
 deterministic test and teaching source for the pipeline.
 
 See [Synthea source documentation](synthea.md).
+
+### CDC Alzheimer's Disease and Healthy Aging
+
+The explorer uses unrestricted aggregate Cognitive Decline estimates from the
+CDC dataset, primarily derived from BRFSS. Users can compare available
+estimates by year, state or region, age, sex, race/ethnicity, and confidence
+interval width. The deployed app uses a visibly labeled versioned fallback if
+the live CDC API is unavailable.
+
+See [CDC source documentation](cdc-healthy-aging.md).
+
+### Published US-POINTER evidence
+
+The explorer models selected aggregate outcomes reported in the peer-reviewed
+US-POINTER publication. These are publication-level randomized trial results,
+not participant-level trial data available through this repository.
+
+See [US-POINTER evidence documentation](us-pointer-evidence.md).
 
 ## What can users safely conclude?
 

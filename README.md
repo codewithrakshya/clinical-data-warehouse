@@ -22,6 +22,18 @@ the US-POINTER randomized clinical trial. See
 > approved for protected health information (PHI). Never commit credentials or
 > exports from a clinical system.
 
+## Documentation
+
+| Guide | Start here when you want to understand |
+| --- | --- |
+| [Project overview](docs/project-overview.md) | The problem, intended users, benefits, and nontechnical workflow |
+| [System design](docs/system-design.md) | Architecture, components, data flow, model, security, reliability, and inference boundaries |
+| [Project roadmap](docs/roadmap.md) | What is complete, what to build next, and what is intentionally deferred |
+| [MIMIC-IV Demo](docs/mimic-iv-demo.md) | MIMIC source files, mappings, derivations, and limitations |
+| [Synthea](docs/synthea.md) | Synthetic test-data preparation |
+| [CDC Healthy Aging](docs/cdc-healthy-aging.md) | Public surveillance data, normalization, fallback, and interpretation |
+| [US-POINTER evidence](docs/us-pointer-evidence.md) | Published trial outcomes and randomized-evidence boundaries |
+
 ## Project highlights
 
 - Normalizes either deterministic Synthea fixtures or the MIMIC-IV Demo into
@@ -345,23 +357,11 @@ silently removed.
 
 ## Roadmap
 
-- [x] Define architecture and warehouse grain
-- [x] Create PostgreSQL staging and warehouse schemas
-- [x] Add Synthea source contracts and validation
-- [x] Add a MIMIC-IV Demo adapter and dataset provenance
-- [x] Add unit-tested transformation helpers
-- [x] Load CSVs into staging tables
-- [x] Build dimensions and facts transactionally
-  - [x] Patient dimension
-  - [x] Code dimension
-  - [x] Date dimension
-  - [x] Encounter fact
-  - [x] Condition fact
-  - [x] Observation fact
-- [x] Add end-to-end data-quality reports
-- [x] Add problem-focused analytics and an interactive cohort explorer
-- [x] Add a Streamlit dashboard
-- [x] Add GitHub Actions CI
-- [x] Add a reproducible CDC Healthy Aging downloader and preparation workflow
-- [x] Model public US-POINTER results as trial-level evidence
-- [x] Add a brain-health evidence view to the Streamlit interface
+The multi-source warehouse, cohort explorer, brain-health evidence interface,
+CDC fallback, read-only deployment, tests, and documentation milestone are
+complete.
+
+The recommended next milestone is a reproducible descriptive case study and a
+citable `v1.0.0` software release. See the
+[prioritized project roadmap](docs/roadmap.md) for the remaining engineering,
+research-quality, and publication tasks.

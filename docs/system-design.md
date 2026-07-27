@@ -34,7 +34,7 @@ count is useful only when the user can identify its source, understand the
 grain of the underlying data, review transformation assumptions, see quality
 warnings, and recognize the limits of the evidence.
 
-This is a portfolio-scale research software system. It is not an electronic
+This is a research-scale software system and public demonstration. It is not an electronic
 health record, clinical decision-support application, patient portal,
 production OMOP implementation, or HIPAA-compliant data platform.
 
@@ -84,7 +84,7 @@ separate.
 | Research lead | Understand whether results are trustworthy | Review parity, link integrity, ETL history, provenance, and limitations |
 | Population-health researcher | Explore reported cognitive-decline patterns | Compare CDC estimates across geography and demographic strata |
 | Student or trainee | Learn an end-to-end clinical data system | Trace a record from source file through validation, PostgreSQL, and Streamlit |
-| Hiring team or collaborator | Evaluate engineering and research judgment | Inspect tested code, deployed behavior, explicit assumptions, and documentation |
+| Research collaborator | Evaluate whether the system fits a shared workflow | Inspect tested behavior, assumptions, provenance, and documentation |
 
 ### Supported use cases
 
@@ -296,7 +296,7 @@ The warehouse uses a small star-like model.
 It makes table grain, keys, mappings, and joins inspectable. A complete OMOP
 CDM or FHIR platform would provide much broader interoperability, but would
 also introduce terminology, governance, and implementation complexity beyond
-the educational and portfolio purpose of this project.
+the educational and research-demonstration purpose of this project.
 
 ### Important modeling boundaries
 
@@ -572,4 +572,3 @@ A production implementation would likely add:
 | Warehouse | Curated relational tables designed for repeatable analysis |
 | Observational evidence | Describes patterns without randomized exposure assignment |
 | Randomized evidence | Compares groups assigned by a random process |
-

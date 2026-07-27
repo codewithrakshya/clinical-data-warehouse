@@ -1,6 +1,6 @@
 # Clinical Data Warehouse
 
-A portfolio-scale, multi-source clinical data warehouse built with Python,
+A research-scale, multi-source clinical data warehouse built with Python,
 PostgreSQL, [Synthea](https://synthea.mitre.org/), and the openly available
 [MIMIC-IV Clinical Database Demo](https://physionet.org/content/mimic-iv-demo/2.2/).
 
@@ -256,7 +256,7 @@ finishes with the data-quality report.
 
 ## Cloud deployment
 
-The recommended portfolio deployment keeps source control, the application,
+The recommended public deployment keeps source control, the application,
 and the database separate:
 
 ```text

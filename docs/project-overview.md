@@ -46,7 +46,7 @@ clinical data engineering:
 6. Give researchers an interactive way to define and export a cohort.
 7. State privacy and interpretation limitations directly in the interface.
 
-It is both a working portfolio project and a learning environment for clinical
+It is both a working research software project and a learning environment for clinical
 data modeling, PostgreSQL, ETL design, data quality, reproducibility, and
 research-facing application development.
 
@@ -364,7 +364,7 @@ Users should **not** conclude:
 ## What would be required for institutional use?
 
 Using the pattern with institutional data would require work beyond this
-portfolio project, including:
+public demonstration, including:
 
 - institutional approval and a data-use agreement;
 - secure infrastructure and access controls;

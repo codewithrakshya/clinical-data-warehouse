@@ -186,19 +186,47 @@ st.markdown(
       }
       .evidence-card h4 { margin: .15rem 0 .5rem; color: #174f42; }
       .evidence-card p { margin: 0; color: #5b6f68; line-height: 1.55; }
-      .stTabs [data-baseweb="tab-list"] {
-        gap: .4rem;
-        background: #edf2ef;
-        padding: .35rem;
+      .stTabs [role="tablist"] {
+        display: flex;
+        flex-wrap: wrap;
+        gap: .45rem;
+        height: auto;
+        background: #e7eeea;
+        padding: .45rem;
         border-radius: 14px;
       }
-      .stTabs [data-baseweb="tab"] {
+      .stTabs [role="tab"] {
+        flex: 0 1 auto;
+        min-height: 2.65rem;
         border-radius: 10px;
-        padding: .45rem .8rem;
+        padding: .55rem .85rem;
+        background: #ffffff;
+        color: #29483f !important;
+        border: 1px solid #d6e2dd;
+        font-weight: 700;
+      }
+      .stTabs [role="tab"] p,
+      .stTabs [role="tab"] span {
+        color: inherit !important;
+        opacity: 1 !important;
+      }
+      .stTabs [role="tab"]:hover {
+        background: #f3faf7;
+        color: #125b48 !important;
+        border-color: #9fcdbd;
+      }
+      .stTabs [role="tab"]:focus-visible {
+        outline: 3px solid rgba(30, 124, 100, .28);
+        outline-offset: 2px;
       }
       .stTabs [aria-selected="true"] {
-        background: white;
+        background: #176b57;
+        color: #ffffff !important;
+        border-color: #176b57;
         box-shadow: 0 3px 10px rgba(29, 63, 54, .08);
+      }
+      .stTabs [data-baseweb="tab-highlight"] {
+        display: none;
       }
       div[data-testid="stDataFrame"] {
         border: 1px solid #dfe8e4;

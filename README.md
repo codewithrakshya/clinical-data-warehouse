@@ -132,6 +132,84 @@ clinical-dw load-encounters
 This converts encounter timestamps and costs, resolves every source patient ID
 to a warehouse patient key, and records one fact row per healthcare visit.
 
+### 9. Build the code dimension and condition fact
+
+```bash
+clinical-dw load-conditions
+```
+
+This upserts reusable clinical concepts into `dim_code`, resolves patient and
+encounter keys, converts onset and resolution dates, and transactionally
+rebuilds one condition fact per source diagnosis episode.
+
+### 10. Build observation facts
+
+```bash
+clinical-dw load-observations
+```
+
+Numeric measurements and text responses are stored separately, optional
+encounter links remain nullable, and source categories are retained as
+Synthea-specific code-system namespaces.
+
+### 11. Run the data-quality report
+
+```bash
+clinical-dw quality
+```
+
+### 12. Open the dashboard
+
+```bash
+streamlit run app.py
+```
+
+Streamlit opens the local Clinical Warehouse Explorer with utilization,
+condition, observation, data-quality, and ETL audit views.
+
+## Run the complete pipeline
+
+After PostgreSQL is available and the four source CSVs are under `data/raw/`,
+the complete idempotent build can be run with one command:
+
+```bash
+clinical-dw run --input-dir data/raw
+```
+
+The command initializes the database, replaces staging data, loads dimensions
+and facts in dependency order, and finishes with the data-quality report.
+
+## Cloud deployment
+
+The recommended portfolio deployment keeps source control, the application,
+and the database separate:
+
+```text
+GitHub repository
+├── Streamlit Community Cloud: app.py
+└── Neon PostgreSQL: staging and warehouse schemas
+```
+
+1. Create a Neon PostgreSQL project and copy its pooled connection string.
+2. From this local checkout, load the synthetic dataset into Neon:
+
+   ```bash
+   DATABASE_URL='your-neon-connection-string' \
+     clinical-dw run --input-dir data/raw
+   ```
+
+3. Push the repository to GitHub.
+4. In Streamlit Community Cloud, deploy `app.py` from the `main` branch.
+5. Add the connection string in Streamlit Advanced settings:
+
+   ```toml
+   DATABASE_URL = "your-neon-connection-string"
+   ```
+
+Never commit the hosted connection string or `.streamlit/secrets.toml`.
+`requirements.txt` installs this project and its dashboard dependencies in
+Streamlit Community Cloud.
+
 ## Learning path
 
 1. **Source contracts:** inspect `src/clinical_dw/contracts.py`.
@@ -163,10 +241,12 @@ to a warehouse patient key, and records one fact row per healthcare visit.
 - [x] Load CSVs into staging tables
 - [ ] Build dimensions and facts transactionally
   - [x] Patient dimension
-  - [ ] Code and date dimensions
+  - [x] Code dimension
+  - [ ] Date dimension
   - [x] Encounter fact
-  - [ ] Condition and observation facts
-- [ ] Add end-to-end data-quality tests
-- [ ] Add analytical SQL examples
-- [ ] Add a Streamlit dashboard
-- [ ] Add GitHub Actions CI
+  - [x] Condition fact
+  - [x] Observation fact
+- [x] Add end-to-end data-quality reports
+- [x] Add analytical dashboard queries
+- [x] Add a Streamlit dashboard
+- [x] Add GitHub Actions CI

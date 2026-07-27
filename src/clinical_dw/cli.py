@@ -6,9 +6,17 @@ from pathlib import Path
 
 import psycopg
 
+from clinical_dw.database import initialize_database
+from clinical_dw.pipeline import run_pipeline
+from clinical_dw.quality import run_quality_checks
 from clinical_dw.staging import load_staging
 from clinical_dw.validation import validate_directory
-from clinical_dw.warehouse import load_encounter_fact, load_patient_dimension
+from clinical_dw.warehouse import (
+    load_condition_fact,
+    load_encounter_fact,
+    load_observation_fact,
+    load_patient_dimension,
+)
 
 DEFAULT_DATABASE_URL = "postgresql://clinical_dw:clinical_dw_dev@localhost:5432/clinical_dw"
 
@@ -41,6 +49,43 @@ def build_parser() -> argparse.ArgumentParser:
         "load-encounters", help="transform staged encounters into the warehouse"
     )
     encounters.add_argument(
+        "--database-url",
+        default=os.getenv("DATABASE_URL", DEFAULT_DATABASE_URL),
+    )
+
+    conditions = subparsers.add_parser(
+        "load-conditions", help="transform staged conditions into the warehouse"
+    )
+    conditions.add_argument(
+        "--database-url",
+        default=os.getenv("DATABASE_URL", DEFAULT_DATABASE_URL),
+    )
+
+    observations = subparsers.add_parser(
+        "load-observations", help="transform staged observations into the warehouse"
+    )
+    observations.add_argument(
+        "--database-url",
+        default=os.getenv("DATABASE_URL", DEFAULT_DATABASE_URL),
+    )
+
+    quality = subparsers.add_parser("quality", help="run structural warehouse data-quality checks")
+    quality.add_argument(
+        "--database-url",
+        default=os.getenv("DATABASE_URL", DEFAULT_DATABASE_URL),
+    )
+
+    init_db = subparsers.add_parser(
+        "init-db", help="initialize schemas and tables in any PostgreSQL database"
+    )
+    init_db.add_argument(
+        "--database-url",
+        default=os.getenv("DATABASE_URL", DEFAULT_DATABASE_URL),
+    )
+
+    pipeline = subparsers.add_parser("run", help="initialize and run the complete ETL pipeline")
+    pipeline.add_argument("--input-dir", type=Path, required=True)
+    pipeline.add_argument(
         "--database-url",
         default=os.getenv("DATABASE_URL", DEFAULT_DATABASE_URL),
     )
@@ -77,6 +122,43 @@ def main() -> int:
             rows_read, rows_loaded = load_encounter_fact(connection)
         print(f"LOADED warehouse.fact_encounter rows_read={rows_read} rows_loaded={rows_loaded}")
         return 0
+
+    if args.command == "load-conditions":
+        with psycopg.connect(args.database_url) as connection:
+            rows_read, rows_loaded = load_condition_fact(connection)
+        print(f"LOADED warehouse.fact_condition rows_read={rows_read} rows_loaded={rows_loaded}")
+        return 0
+
+    if args.command == "load-observations":
+        with psycopg.connect(args.database_url) as connection:
+            rows_read, rows_loaded = load_observation_fact(connection)
+        print(f"LOADED warehouse.fact_observation rows_read={rows_read} rows_loaded={rows_loaded}")
+        return 0
+
+    if args.command == "quality":
+        with psycopg.connect(args.database_url) as connection:
+            checks = run_quality_checks(connection)
+        for check in checks:
+            print(
+                f"{check.status:4} {check.check:36} value={check.value} expected={check.expected}"
+            )
+        return 1 if any(check.status == "FAIL" for check in checks) else 0
+
+    if args.command == "init-db":
+        with psycopg.connect(args.database_url) as connection:
+            sql_files = initialize_database(connection)
+        for filename in sql_files:
+            print(f"APPLIED {filename}")
+        return 0
+
+    if args.command == "run":
+        with psycopg.connect(args.database_url) as connection:
+            result = run_pipeline(args.input_dir, connection)
+        for table, count in result.warehouse_counts.items():
+            print(f"LOADED warehouse.{table:15} rows={count}")
+        for check in result.quality_checks:
+            print(f"{check.status:4} {check.check}")
+        return 1 if any(check.status == "FAIL" for check in result.quality_checks) else 0
 
     return 2
 

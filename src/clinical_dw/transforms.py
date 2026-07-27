@@ -20,7 +20,7 @@ def parse_timestamp(value: str | None) -> datetime | None:
     cleaned = clean_optional_text(value)
     if not cleaned:
         return None
-    return datetime.fromisoformat(cleaned.replace("Z", "+00:00"))
+    return datetime.fromisoformat(cleaned)
 
 
 def parse_decimal(value: str | None) -> Decimal | None:

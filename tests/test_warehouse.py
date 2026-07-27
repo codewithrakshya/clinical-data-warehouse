@@ -1,7 +1,12 @@
 import unittest
 from datetime import date
 
-from clinical_dw.warehouse import transform_encounter, transform_patient
+from clinical_dw.warehouse import (
+    transform_condition,
+    transform_encounter,
+    transform_observation,
+    transform_patient,
+)
 
 
 class WarehouseTests(unittest.TestCase):
@@ -78,6 +83,105 @@ class WarehouseTests(unittest.TestCase):
                     "",
                     "",
                     "",
+                )
+            )
+
+    def test_transform_condition_converts_dates_and_blank_resolution(self) -> None:
+        record = transform_condition(
+            (
+                "patient-1",
+                "encounter-1",
+                "http://snomed.info/sct",
+                "44054006",
+                "Diabetes mellitus type 2",
+                "2020-04-12",
+                "",
+            )
+        )
+
+        self.assertEqual(record.onset_date, date(2020, 4, 12))
+        self.assertIsNone(record.resolved_date)
+        self.assertEqual(record.code, "44054006")
+
+    def test_transform_condition_rejects_resolution_before_onset(self) -> None:
+        with self.assertRaisesRegex(ValueError, "precedes onset"):
+            transform_condition(
+                (
+                    "patient-1",
+                    "encounter-1",
+                    "http://snomed.info/sct",
+                    "44054006",
+                    "Diabetes mellitus type 2",
+                    "2020-04-12",
+                    "2020-04-11",
+                )
+            )
+
+    def test_transform_condition_requires_code_system(self) -> None:
+        with self.assertRaisesRegex(ValueError, "code system is required"):
+            transform_condition(
+                (
+                    "patient-1",
+                    "encounter-1",
+                    "",
+                    "44054006",
+                    "",
+                    "2020-04-12",
+                    "",
+                )
+            )
+
+    def test_transform_observation_splits_numeric_value(self) -> None:
+        record = transform_observation(
+            (
+                "patient-1",
+                "encounter-1",
+                "vital-signs",
+                "8867-4",
+                "Heart rate",
+                "2026-01-02T10:00:00Z",
+                "72.5",
+                "beats/min",
+                "numeric",
+            )
+        )
+
+        self.assertEqual(str(record.value_numeric), "72.5")
+        self.assertIsNone(record.value_text)
+        self.assertEqual(record.code_system, "urn:synthea:observation:vital-signs")
+
+    def test_transform_observation_preserves_text_value(self) -> None:
+        record = transform_observation(
+            (
+                "patient-1",
+                "",
+                "",
+                "72166-2",
+                "Tobacco smoking status",
+                "2026-01-02T10:00:00Z",
+                "Never smoker",
+                "",
+                "text",
+            )
+        )
+
+        self.assertIsNone(record.source_encounter_id)
+        self.assertEqual(record.value_text, "Never smoker")
+        self.assertEqual(record.code_system, "urn:synthea:observation:uncategorized")
+
+    def test_transform_observation_requires_value(self) -> None:
+        with self.assertRaisesRegex(ValueError, "value is required"):
+            transform_observation(
+                (
+                    "patient-1",
+                    "",
+                    "survey",
+                    "72166-2",
+                    "",
+                    "2026-01-02T10:00:00Z",
+                    "",
+                    "",
+                    "text",
                 )
             )
 

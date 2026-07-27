@@ -1,4 +1,4 @@
-"""End-to-end orchestration for a validated clinical warehouse build."""
+"""Orchestration for a complete, validated clinical warehouse build."""
 
 from dataclasses import dataclass
 from pathlib import Path

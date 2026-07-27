@@ -83,7 +83,7 @@ separate.
 | Research data engineer | Add or evaluate a new source | Implement a source contract and adapter into common staging |
 | Research lead | Understand whether results are trustworthy | Review parity, link integrity, ETL history, provenance, and limitations |
 | Population-health researcher | Explore reported cognitive-decline patterns | Compare CDC estimates across geography and demographic strata |
-| Student or trainee | Learn an end-to-end clinical data system | Trace a record from source file through validation, PostgreSQL, and Streamlit |
+| Student or trainee | Learn how a clinical data pipeline works | Trace a record from source file through validation, PostgreSQL, and Streamlit |
 | Research collaborator | Evaluate whether the system fits a shared workflow | Inspect tested behavior, assumptions, provenance, and documentation |
 
 ### Supported use cases
@@ -553,7 +553,7 @@ A production implementation would likely add:
 7. **Label evidence design and inference limits next to results.**
 8. **Use least-privilege credentials for public applications.**
 9. **Keep provenance with every deployed analytical view.**
-10. **Prefer a small system that can be understood end to end.**
+10. **Prefer a small system whose full data flow can be inspected.**
 
 ## Glossary
 

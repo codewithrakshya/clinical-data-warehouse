@@ -30,7 +30,7 @@ This is a credible stopping point for the current engineering milestone.
 ## Immediate documentation milestone
 
 - [x] Explain the problem, users, and use cases.
-- [x] Document the end-to-end system design.
+- [x] Document the system architecture and data flow.
 - [x] Define patient-level versus aggregate evidence boundaries.
 - [x] Document the read-only deployment model.
 - [x] Document the CDC fallback and evidence limitations.
@@ -218,4 +218,3 @@ The best next milestone is:
 This would strengthen the project more than adding another dashboard feature.
 It would demonstrate that the platform can support a transparent analytical
 workflow while preserving its data and inference boundaries.
-

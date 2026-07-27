@@ -35,7 +35,7 @@ warehouse model.
 
 ## Why was it made?
 
-The project was made to demonstrate an end-to-end approach to trustworthy
+The project was made to demonstrate a complete workflow for trustworthy
 clinical data engineering:
 
 1. Accept more than one source format.
@@ -86,7 +86,7 @@ assumptions are stated explicitly.
 
 The schema is smaller than OMOP CDM or a complete FHIR platform. That makes the
 source mappings, transformations, SQL tables, quality checks, and interface
-practical to inspect from end to end.
+practical to inspect from source files through the deployed interface.
 
 ### 6. Different evidence types remain different products
 
@@ -274,7 +274,7 @@ The application queries the warehouse to apply patient and clinical filters.
 It recalculates cohort size and event counts and generates a deidentified CSV
 summary for downstream research work.
 
-## Example user journey
+## Example workflow
 
 1. A researcher opens the public application.
 2. The landing page explains the data harmonization problem and identifies the

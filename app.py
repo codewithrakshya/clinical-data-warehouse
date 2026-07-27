@@ -1,5 +1,6 @@
-"""Streamlit interface for the local synthetic clinical data warehouse."""
+"""Streamlit interface for the multi-source clinical data warehouse."""
 
+import html
 import os
 
 import pandas as pd
@@ -101,20 +102,6 @@ def format_count(value: int) -> str:
     return f"{value:,}"
 
 
-st.markdown(
-    """
-    <div class="hero">
-      <div class="hero-kicker">Synthetic clinical analytics</div>
-      <h1>Clinical Warehouse Explorer</h1>
-      <p>
-        Follow validated Synthea records from source-shaped staging tables to
-        connected, analytics-ready patient, encounter, condition, and observation facts.
-      </p>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
-
 try:
     counts = query(
         """
@@ -122,7 +109,13 @@ try:
           (SELECT COUNT(*) FROM warehouse.dim_patient) AS patients,
           (SELECT COUNT(*) FROM warehouse.fact_encounter) AS encounters,
           (SELECT COUNT(*) FROM warehouse.fact_condition) AS conditions,
-          (SELECT COUNT(*) FROM warehouse.fact_observation) AS observations
+          (SELECT COUNT(*) FROM warehouse.fact_observation) AS observations,
+          (SELECT source_label FROM warehouse.dataset_metadata WHERE metadata_id = 1)
+            AS source_label,
+          (SELECT source_version FROM warehouse.dataset_metadata WHERE metadata_id = 1)
+            AS source_version,
+          (SELECT is_synthetic FROM warehouse.dataset_metadata WHERE metadata_id = 1)
+            AS is_synthetic
         """
     ).iloc[0]
 except psycopg.Error as exc:
@@ -133,18 +126,59 @@ except psycopg.Error as exc:
     st.code(str(exc))
     st.stop()
 
+source_label = (
+    "Unknown source" if pd.isna(counts["source_label"]) else str(counts["source_label"])
+)
+source_version = (
+    "" if pd.isna(counts["source_version"]) else str(counts["source_version"]).strip()
+)
+is_synthetic = (
+    True if pd.isna(counts["is_synthetic"]) else bool(counts["is_synthetic"])
+)
+source_display = f"{source_label} v{source_version}" if source_version else source_label
+source_kind = "Synthetic clinical analytics" if is_synthetic else "Deidentified EHR analytics"
+
+st.markdown(
+    f"""
+    <div class="hero">
+      <div class="hero-kicker">{html.escape(source_kind)}</div>
+      <h1>Clinical Warehouse Explorer</h1>
+      <p>
+        Follow validated {html.escape(source_display)} records from source-specific
+        files to connected, analytics-ready patient, encounter, condition, and
+        observation facts.
+      </p>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
+
 metric_columns = st.columns(4)
 metric_columns[0].metric("Patients", format_count(int(counts["patients"])))
 metric_columns[1].metric("Encounters", format_count(int(counts["encounters"])))
 metric_columns[2].metric("Condition episodes", format_count(int(counts["conditions"])))
 metric_columns[3].metric("Observations", format_count(int(counts["observations"])))
 
+if is_synthetic:
+    source_note = (
+        "This interface contains synthetic Synthea data. Its summaries demonstrate "
+        "engineering and analytical behavior—not conclusions about a real population."
+    )
+else:
+    source_note = (
+        "This interface uses the openly available, deidentified MIMIC-IV Demo. "
+        "Identifiers and dates were transformed for privacy; summaries are educational "
+        "and must not be interpreted as clinical findings."
+    )
 st.markdown(
-    '<p class="synthetic-note">This interface contains synthetic Synthea data only. '
-    "Its summaries demonstrate engineering and analytical behavior—not conclusions "
-    "about a real population.</p>",
+    f'<p class="synthetic-note">{html.escape(source_note)}</p>',
     unsafe_allow_html=True,
 )
+if not is_synthetic:
+    st.caption(
+        "Source: MIMIC-IV Clinical Database Demo v2.2, PhysioNet "
+        "(Johnson et al., 2023; DOI: 10.13026/dp1f-ex47)."
+    )
 
 overview_tab, condition_tab, observation_tab, quality_tab, pipeline_tab = st.tabs(
     ["Overview", "Conditions", "Observations", "Data quality", "Pipeline"]
@@ -175,7 +209,7 @@ with overview_tab:
     with right:
         st.subheader("Patient coverage")
         st.markdown(
-            '<p class="section-note">Synthetic demographics represented in the warehouse.</p>',
+            '<p class="section-note">Demographics represented in the active dataset.</p>',
             unsafe_allow_html=True,
         )
         demographics = query(
@@ -190,7 +224,7 @@ with overview_tab:
         )
         st.bar_chart(demographics.set_index("race"), color="#e4a853")
 
-    st.subheader("Encounter duration and cost")
+    st.subheader("Encounter duration and utilization")
     utilization = query(
         """
         SELECT
@@ -204,18 +238,22 @@ with overview_tab:
         ORDER BY encounters DESC
         """
     )
+    utilization_config = {
+        "encounter_class": "Encounter class",
+        "encounters": st.column_config.NumberColumn("Encounters", format="%d"),
+        "average_minutes": st.column_config.NumberColumn("Average minutes", format="%.1f"),
+    }
+    if is_synthetic:
+        utilization_config["total_claim_cost"] = st.column_config.NumberColumn(
+            "Synthetic claim cost", format="$%.2f"
+        )
+    else:
+        utilization = utilization.drop(columns=["total_claim_cost"])
     st.dataframe(
         utilization,
         width="stretch",
         hide_index=True,
-        column_config={
-            "encounter_class": "Encounter class",
-            "encounters": st.column_config.NumberColumn("Encounters", format="%d"),
-            "average_minutes": st.column_config.NumberColumn("Average minutes", format="%.1f"),
-            "total_claim_cost": st.column_config.NumberColumn(
-                "Synthetic claim cost", format="$%.2f"
-            ),
-        },
+        column_config=utilization_config,
     )
 
 with condition_tab:
@@ -357,4 +395,4 @@ if st.sidebar.button("Refresh warehouse data", width="stretch"):
     st.cache_data.clear()
     st.rerun()
 
-st.sidebar.caption("Local PostgreSQL • Synthetic data only")
+st.sidebar.caption(f"PostgreSQL • {source_display}")

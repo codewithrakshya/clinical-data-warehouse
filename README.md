@@ -1,17 +1,21 @@
 # Clinical Data Warehouse
 
-A portfolio-scale clinical data warehouse built with synthetic
-[Synthea](https://synthea.mitre.org/) records, PostgreSQL, and Python.
+A portfolio-scale, multi-source clinical data warehouse built with Python,
+PostgreSQL, [Synthea](https://synthea.mitre.org/), and the openly available
+[MIMIC-IV Clinical Database Demo](https://physionet.org/content/mimic-iv-demo/2.2/).
 
 [**Explore the live Clinical Warehouse dashboard →**](https://rakshya-clinical-warehouse.streamlit.app/)
 
-> This project uses synthetic data only. Never commit protected health
-> information (PHI), credentials, or exports from a clinical system.
+> The live project uses the deidentified MIMIC-IV Demo. It is not designed or
+> approved for protected health information (PHI). Never commit credentials or
+> exports from a clinical system.
 
 ## Project highlights
 
-- Processes 108 synthetic patients, 5,473 encounters, 3,784 condition episodes,
-  and 75,343 observations through a repeatable ETL pipeline.
+- Normalizes either deterministic Synthea fixtures or the MIMIC-IV Demo into
+  one analytics-ready warehouse model through explicit source adapters.
+- Processes 100 deidentified MIMIC demo patients, 275 admissions, 4,506
+  diagnoses, and 98,139 laboratory results in the real-world-data path.
 - Models analytics-ready patient and code dimensions with encounter, condition,
   and observation facts in PostgreSQL.
 - Preserves source-shaped staging data, validates schema drift, resolves
@@ -28,18 +32,17 @@ A portfolio-scale clinical data warehouse built with synthetic
 - Separating raw/staging data from curated warehouse tables
 - Data-quality testing and audit logging
 - Containerized local development with PostgreSQL
-- Healthcare analytics without exposing real patient information
+- Deidentified healthcare analytics with explicit provenance and limitations
 
 ## Architecture
 
 ```text
-Synthea CSV files
+Synthea CSVs ─┐
+              ├─> source adapters + validation
+MIMIC CSVs ───┘
         |
         v
-Python validation and transformation
-        |
-        v
-staging schema (source-shaped tables)
+common staging schema
         |
         v
 warehouse schema (dimensions + facts)
@@ -84,6 +87,7 @@ numeric values.
 | `fact_condition` | One row per patient condition | Diagnosis history |
 | `fact_observation` | One row per clinical observation | Labs, vitals, and results |
 | `etl_run` | One row per pipeline run | Operational audit trail |
+| `dataset_metadata` | One row for the active source | Provenance and dashboard labeling |
 
 This is a deliberately small star schema. It is easier to learn and test than a
 full OMOP or FHIR implementation, while preserving the same core modeling
@@ -108,7 +112,7 @@ source .venv/bin/activate
 pip install -e ".[dev]"
 ```
 
-### 3. Download synthetic Synthea CSV data
+### 3. Choose a source dataset
 
 Generate or download a Synthea CSV export and place these files under
 `data/raw/`:
@@ -122,21 +126,31 @@ observations.csv
 
 See [docs/synthea.md](docs/synthea.md) for options.
 
+For the deidentified MIMIC-IV Demo, follow
+[docs/mimic-iv-demo.md](docs/mimic-iv-demo.md) and extract the files under
+`data/mimic/`.
+
 ### 4. Validate source files
 
 ```bash
 clinical-dw validate --input-dir data/raw
 ```
 
-### 5. Load source-shaped staging tables
+For MIMIC:
+
+```bash
+clinical-dw validate --source mimic --input-dir data/mimic
+```
+
+### 5. Load normalized staging tables
 
 ```bash
 clinical-dw load-staging --input-dir data/raw
 ```
 
-The load validates all four files first, replaces the staging tables in one
-database transaction, and preserves selected source values as text. Re-running
-the command produces the same staging state instead of duplicating rows.
+Use `--source mimic --input-dir data/mimic` for MIMIC. Each adapter validates
+its required files before replacing the common staging tables in one database
+transaction.
 
 ### 6. Run tests
 
@@ -179,8 +193,8 @@ clinical-dw load-observations
 ```
 
 Numeric measurements and text responses are stored separately, optional
-encounter links remain nullable, and source categories are retained as
-Synthea-specific code-system namespaces.
+encounter links remain nullable, and source-specific coding namespaces are
+retained.
 
 ### 11. Run the data-quality report
 
@@ -202,15 +216,17 @@ The public dashboard is available at
 
 ## Run the complete pipeline
 
-After PostgreSQL is available and the four source CSVs are under `data/raw/`,
-the complete idempotent build can be run with one command:
+After PostgreSQL is available, run either source through the complete build:
 
 ```bash
 clinical-dw run --input-dir data/raw
+
+clinical-dw run --source mimic --input-dir data/mimic
 ```
 
-The command initializes the database, replaces staging data, loads dimensions
-and facts in dependency order, and finishes with the data-quality report.
+The command initializes the database, replaces the active dataset, loads
+dimensions and facts in dependency order, records source provenance, and
+finishes with the data-quality report.
 
 ## Cloud deployment
 
@@ -224,11 +240,11 @@ GitHub repository
 ```
 
 1. Create a Neon PostgreSQL project and copy its pooled connection string.
-2. From this local checkout, load the synthetic dataset into Neon:
+2. From this local checkout, load the selected dataset into Neon:
 
    ```bash
    DATABASE_URL='your-neon-connection-string' \
-     clinical-dw run --input-dir data/raw
+     clinical-dw run --source mimic --input-dir data/mimic
    ```
 
 3. Push the repository to GitHub.
@@ -245,19 +261,18 @@ Streamlit Community Cloud.
 
 ## Data-quality interpretation
 
-The current synthetic export passes row-parity, relationship-integrity,
-date-ordering, and ETL-run checks. Fourteen exact duplicate observation rows
-are intentionally preserved and reported as a warning. Retaining them keeps
-the warehouse traceable to its source while making the limitation visible to
-analysts.
+Both adapters validate source schemas before normalization. The MIMIC demo load
+passes normalized row parity, relationship integrity, date ordering, and ETL
+run checks. Source duplicates remain visible as a warning rather than being
+silently removed.
 
 ## Scope and limitations
 
-- The included adapter targets Synthea CSV exports; additional formats require
-  explicit source mappings.
-- The public deployment contains synthetic records only and is not designed or
-  approved for protected health information.
-- Dashboard results demonstrate engineering behavior and should not be
+- The supported adapters target Synthea CSV exports and MIMIC-IV Demo v2.2.
+- MIMIC identifiers and dates are deidentified; derived birth dates and
+  diagnosis onset dates are documented approximations.
+- The project is not designed or approved for protected health information.
+- Dashboard summaries demonstrate engineering behavior and must not be
   interpreted as findings about a real patient population.
 - This learning-scale star schema is intentionally smaller than production
   standards such as OMOP CDM or FHIR-based clinical platforms.
@@ -265,10 +280,12 @@ analysts.
 ## Learning path
 
 1. **Source contracts:** inspect `src/clinical_dw/contracts.py`.
-2. **Transformations:** inspect `src/clinical_dw/transforms.py`.
-3. **Warehouse grain:** read `sql/init/002_warehouse.sql`.
-4. **Quality checks:** run `pytest -v`.
-5. **Calendar analysis:** inspect `load_date_dimension` in
+2. **Source adapters:** compare `src/clinical_dw/mimic.py` with the Synthea
+   staging specifications in `src/clinical_dw/staging.py`.
+3. **Transformations:** inspect `src/clinical_dw/transforms.py`.
+4. **Warehouse grain:** read `sql/init/002_warehouse.sql`.
+5. **Quality checks:** run `pytest -v`.
+6. **Calendar analysis:** inspect `load_date_dimension` in
    `src/clinical_dw/warehouse.py` to see how event dates receive reusable
    `YYYYMMDD` keys.
 
@@ -276,7 +293,7 @@ analysts.
 
 ```text
 .
-├── data/                  # Local synthetic inputs (ignored by Git)
+├── data/                  # Local source inputs (ignored by Git)
 ├── docs/                  # Learning notes and architecture decisions
 ├── sql/init/              # PostgreSQL initialization scripts
 ├── src/clinical_dw/       # Python validation and ETL code
@@ -290,6 +307,7 @@ analysts.
 - [x] Define architecture and warehouse grain
 - [x] Create PostgreSQL staging and warehouse schemas
 - [x] Add Synthea source contracts and validation
+- [x] Add a MIMIC-IV Demo adapter and dataset provenance
 - [x] Add unit-tested transformation helpers
 - [x] Load CSVs into staging tables
 - [x] Build dimensions and facts transactionally

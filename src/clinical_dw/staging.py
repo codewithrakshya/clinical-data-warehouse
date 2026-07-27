@@ -1,4 +1,4 @@
-"""Transactional loading of validated Synthea CSVs into PostgreSQL staging."""
+"""Transactional loading of normalized source records into PostgreSQL staging."""
 
 import csv
 from collections.abc import Iterator
@@ -7,7 +7,9 @@ from pathlib import Path
 
 from psycopg import Connection, sql
 
-from clinical_dw.contracts import CONTRACTS
+from clinical_dw.contracts import SYNTHEA_CONTRACTS
+from clinical_dw.mimic import MIMIC_STAGING_ROWS
+from clinical_dw.source_io import open_source_text
 from clinical_dw.validation import validate_directory
 
 
@@ -87,14 +89,33 @@ STAGING_SPECS = (
 
 def iter_source_rows(path: Path, columns: tuple[str, ...]) -> Iterator[tuple[str, ...]]:
     """Yield selected values in a deterministic order without transforming them."""
-    with path.open(newline="", encoding="utf-8-sig") as stream:
+    with open_source_text(path) as stream:
         for row in csv.DictReader(stream):
             yield tuple(row[column] for column in columns)
 
 
-def load_staging(input_dir: Path, connection: Connection) -> dict[str, int]:
+def _source_rows(
+    input_dir: Path,
+    source: str,
+    spec: StagingSpec,
+) -> Iterator[tuple[str, ...]]:
+    if source == "synthea":
+        path = input_dir / SYNTHEA_CONTRACTS[spec.contract_name].filename
+        yield from iter_source_rows(path, spec.source_columns)
+        return
+    if source == "mimic":
+        yield from MIMIC_STAGING_ROWS[spec.table](input_dir)
+        return
+    raise ValueError(f"unsupported source: {source}")
+
+
+def load_staging(
+    input_dir: Path,
+    connection: Connection,
+    source: str = "synthea",
+) -> dict[str, int]:
     """Replace all staging tables atomically with validated source rows."""
-    results = validate_directory(input_dir)
+    results = validate_directory(input_dir, source=source)
     errors = [error for result in results for error in result.errors]
     if errors:
         raise ValueError("source validation failed: " + "; ".join(errors))
@@ -106,14 +127,13 @@ def load_staging(input_dir: Path, connection: Connection) -> dict[str, int]:
         cursor.execute(sql.SQL("TRUNCATE {}").format(sql.SQL(", ").join(table_identifiers)))
 
         for spec in STAGING_SPECS:
-            path = input_dir / CONTRACTS[spec.contract_name].filename
             statement = sql.SQL("COPY {} ({}) FROM STDIN").format(
                 sql.Identifier("staging", spec.table),
                 sql.SQL(", ").join(map(sql.Identifier, spec.target_columns)),
             )
             row_count = 0
             with cursor.copy(statement) as copy:
-                for row in iter_source_rows(path, spec.source_columns):
+                for row in _source_rows(input_dir, source, spec):
                     copy.write_row(row)
                     row_count += 1
             counts[spec.table] = row_count

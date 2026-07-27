@@ -14,6 +14,8 @@ from clinical_dw.warehouse import (
     load_encounter_fact,
     load_observation_fact,
     load_patient_dimension,
+    reset_warehouse_data,
+    set_dataset_metadata,
 )
 
 
@@ -24,10 +26,15 @@ class PipelineResult:
     quality_checks: list[QualityCheck]
 
 
-def run_pipeline(input_dir: Path, connection: Connection) -> PipelineResult:
+def run_pipeline(
+    input_dir: Path,
+    connection: Connection,
+    source: str = "synthea",
+) -> PipelineResult:
     """Initialize schemas and load all warehouse entities in dependency order."""
     initialize_database(connection)
-    staging_counts = load_staging(input_dir, connection)
+    staging_counts = load_staging(input_dir, connection, source=source)
+    reset_warehouse_data(connection)
 
     warehouse_counts = {}
     _, warehouse_counts["dim_patient"] = load_patient_dimension(connection)
@@ -35,6 +42,7 @@ def run_pipeline(input_dir: Path, connection: Connection) -> PipelineResult:
     _, warehouse_counts["fact_condition"] = load_condition_fact(connection)
     _, warehouse_counts["fact_observation"] = load_observation_fact(connection)
     _, warehouse_counts["dim_date"] = load_date_dimension(connection)
+    set_dataset_metadata(connection, source)
 
     return PipelineResult(
         staging_counts=staging_counts,

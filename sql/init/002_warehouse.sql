@@ -9,6 +9,15 @@ CREATE TABLE IF NOT EXISTS warehouse.etl_run (
     error_message TEXT
 );
 
+CREATE TABLE IF NOT EXISTS warehouse.dataset_metadata (
+    metadata_id SMALLINT PRIMARY KEY DEFAULT 1 CHECK (metadata_id = 1),
+    source_id TEXT NOT NULL,
+    source_label TEXT NOT NULL,
+    source_version TEXT,
+    is_synthetic BOOLEAN NOT NULL,
+    loaded_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS warehouse.dim_patient (
     patient_key BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     source_patient_id TEXT NOT NULL UNIQUE,

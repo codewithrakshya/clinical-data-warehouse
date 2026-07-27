@@ -26,13 +26,23 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="clinical-dw")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    validate = subparsers.add_parser("validate", help="validate Synthea source CSVs")
+    validate = subparsers.add_parser("validate", help="validate source CSVs")
     validate.add_argument("--input-dir", type=Path, required=True)
+    validate.add_argument(
+        "--source",
+        choices=("synthea", "mimic"),
+        default="synthea",
+    )
 
     load = subparsers.add_parser(
         "load-staging", help="validate and replace PostgreSQL staging tables"
     )
     load.add_argument("--input-dir", type=Path, required=True)
+    load.add_argument(
+        "--source",
+        choices=("synthea", "mimic"),
+        default="synthea",
+    )
     load.add_argument(
         "--database-url",
         default=os.getenv("DATABASE_URL", DEFAULT_DATABASE_URL),
@@ -95,6 +105,11 @@ def build_parser() -> argparse.ArgumentParser:
     pipeline = subparsers.add_parser("run", help="initialize and run the complete ETL pipeline")
     pipeline.add_argument("--input-dir", type=Path, required=True)
     pipeline.add_argument(
+        "--source",
+        choices=("synthea", "mimic"),
+        default="synthea",
+    )
+    pipeline.add_argument(
         "--database-url",
         default=os.getenv("DATABASE_URL", DEFAULT_DATABASE_URL),
     )
@@ -105,7 +120,7 @@ def main() -> int:
     args = build_parser().parse_args()
 
     if args.command == "validate":
-        results = validate_directory(args.input_dir)
+        results = validate_directory(args.input_dir, source=args.source)
         for result in results:
             status = "PASS" if result.valid else "FAIL"
             print(f"{status:4} {result.filename:20} rows={result.row_count}")
@@ -115,7 +130,7 @@ def main() -> int:
 
     if args.command == "load-staging":
         with psycopg.connect(args.database_url) as connection:
-            counts = load_staging(args.input_dir, connection)
+            counts = load_staging(args.input_dir, connection, source=args.source)
         for table, count in counts.items():
             print(f"LOADED staging.{table:15} rows={count}")
         return 0
@@ -168,7 +183,7 @@ def main() -> int:
 
     if args.command == "run":
         with psycopg.connect(args.database_url) as connection:
-            result = run_pipeline(args.input_dir, connection)
+            result = run_pipeline(args.input_dir, connection, source=args.source)
         for table, count in result.warehouse_counts.items():
             print(f"LOADED warehouse.{table:15} rows={count}")
         for check in result.quality_checks:

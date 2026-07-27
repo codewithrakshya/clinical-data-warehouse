@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from clinical_dw.contracts import CONTRACTS
+from clinical_dw.contracts import CONTRACTS, MIMIC_CONTRACTS
 from clinical_dw.validation import validate_csv
 
 
@@ -66,6 +66,26 @@ class ValidationTests(unittest.TestCase):
             [{column: f"value-{column}" for column in columns}],
         )
         result = validate_csv(self.input_dir, "observations")
+        self.assertTrue(result.valid)
+        self.assertEqual(result.row_count, 1)
+
+    def test_validation_reads_gzip_mimic_sources(self) -> None:
+        contract = MIMIC_CONTRACTS["patients"]
+        columns = sorted(contract.required_columns)
+        path = self.input_dir / contract.filename
+        path.parent.mkdir(parents=True)
+        import gzip
+
+        with gzip.open(path, mode="wt", newline="", encoding="utf-8") as stream:
+            writer = csv.DictWriter(stream, fieldnames=columns)
+            writer.writeheader()
+            writer.writerow({column: f"value-{column}" for column in columns})
+
+        result = validate_csv(
+            self.input_dir,
+            "patients",
+            contracts=MIMIC_CONTRACTS,
+        )
         self.assertTrue(result.valid)
         self.assertEqual(result.row_count, 1)
 

@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "clinical-data-warehouse"
 version = "0.1.0"
-description = "Synthetic clinical data warehouse and ETL learning project"
+description = "Multi-source clinical data warehouse and ETL learning project"
 requires-python = ">=3.11"
 dependencies = [
   "pandas>=2.2",

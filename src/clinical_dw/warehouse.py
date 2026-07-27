@@ -101,6 +101,51 @@ def build_date_records(start_date: date, end_date: date) -> list[DateRecord]:
     return records
 
 
+def reset_warehouse_data(connection: Connection) -> None:
+    """Remove the active dataset while retaining the historical ETL audit."""
+    with connection.transaction(), connection.cursor() as cursor:
+        cursor.execute(
+            """
+            TRUNCATE
+                warehouse.fact_observation,
+                warehouse.fact_condition,
+                warehouse.fact_encounter,
+                warehouse.dim_code,
+                warehouse.dim_date,
+                warehouse.dim_patient
+            RESTART IDENTITY
+            """
+        )
+
+
+def set_dataset_metadata(connection: Connection, source: str) -> None:
+    """Record which normalized source currently populates the warehouse."""
+    metadata = {
+        "synthea": ("Synthea", None, True),
+        "mimic": ("MIMIC-IV Clinical Database Demo", "2.2", False),
+    }
+    if source not in metadata:
+        raise ValueError(f"unsupported source: {source}")
+    label, version, is_synthetic = metadata[source]
+    with connection.transaction(), connection.cursor() as cursor:
+        cursor.execute(
+            """
+            INSERT INTO warehouse.dataset_metadata (
+                metadata_id, source_id, source_label, source_version,
+                is_synthetic, loaded_at
+            )
+            VALUES (1, %s, %s, %s, %s, NOW())
+            ON CONFLICT (metadata_id) DO UPDATE SET
+                source_id = EXCLUDED.source_id,
+                source_label = EXCLUDED.source_label,
+                source_version = EXCLUDED.source_version,
+                is_synthetic = EXCLUDED.is_synthetic,
+                loaded_at = EXCLUDED.loaded_at
+            """,
+            (source, label, version, is_synthetic),
+        )
+
+
 def transform_patient(row: tuple[str | None, ...]) -> PatientRecord:
     """Convert one source-shaped patient row into validated warehouse values."""
     (

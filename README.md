@@ -3,8 +3,23 @@
 A portfolio-scale clinical data warehouse built with synthetic
 [Synthea](https://synthea.mitre.org/) records, PostgreSQL, and Python.
 
+[**Explore the live Clinical Warehouse dashboard →**](https://rakshya-clinical-warehouse.streamlit.app/)
+
 > This project uses synthetic data only. Never commit protected health
 > information (PHI), credentials, or exports from a clinical system.
+
+## Project highlights
+
+- Processes 108 synthetic patients, 5,473 encounters, 3,784 condition episodes,
+  and 75,343 observations through a repeatable ETL pipeline.
+- Models analytics-ready patient and code dimensions with encounter, condition,
+  and observation facts in PostgreSQL.
+- Preserves source-shaped staging data, validates schema drift, resolves
+  warehouse relationships, and records durable ETL audit history.
+- Publishes structural quality checks that distinguish failures from reviewable
+  warnings instead of silently discarding questionable source records.
+- Runs locally with Docker and in the cloud with Neon PostgreSQL, Streamlit
+  Community Cloud, and GitHub Actions CI.
 
 ## What this project demonstrates
 
@@ -30,7 +45,22 @@ staging schema (source-shaped tables)
 warehouse schema (dimensions + facts)
         |
         v
-SQL analytics / future dashboard
+Streamlit analytics dashboard
+```
+
+The deployed application uses the same warehouse model:
+
+```text
+GitHub source + CI
+        |
+        v
+Streamlit Community Cloud
+        |
+        v
+Neon PostgreSQL
+        |
+        v
+staging + warehouse + ETL audit schemas
 ```
 
 ### Why two database schemas?
@@ -167,6 +197,9 @@ streamlit run app.py
 Streamlit opens the local Clinical Warehouse Explorer with utilization,
 condition, observation, data-quality, and ETL audit views.
 
+The public dashboard is available at
+[rakshya-clinical-warehouse.streamlit.app](https://rakshya-clinical-warehouse.streamlit.app/).
+
 ## Run the complete pipeline
 
 After PostgreSQL is available and the four source CSVs are under `data/raw/`,
@@ -209,6 +242,25 @@ GitHub repository
 Never commit the hosted connection string or `.streamlit/secrets.toml`.
 `requirements.txt` installs this project and its dashboard dependencies in
 Streamlit Community Cloud.
+
+## Data-quality interpretation
+
+The current synthetic export passes row-parity, relationship-integrity,
+date-ordering, and ETL-run checks. Fourteen exact duplicate observation rows
+are intentionally preserved and reported as a warning. Retaining them keeps
+the warehouse traceable to its source while making the limitation visible to
+analysts.
+
+## Scope and limitations
+
+- The included adapter targets Synthea CSV exports; additional formats require
+  explicit source mappings.
+- The public deployment contains synthetic records only and is not designed or
+  approved for protected health information.
+- Dashboard results demonstrate engineering behavior and should not be
+  interpreted as findings about a real patient population.
+- This learning-scale star schema is intentionally smaller than production
+  standards such as OMOP CDM or FHIR-based clinical platforms.
 
 ## Learning path
 

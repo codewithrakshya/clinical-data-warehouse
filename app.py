@@ -273,15 +273,9 @@ except psycopg.Error as exc:
     st.code(str(exc))
     st.stop()
 
-source_label = (
-    "Unknown source" if pd.isna(counts["source_label"]) else str(counts["source_label"])
-)
-source_version = (
-    "" if pd.isna(counts["source_version"]) else str(counts["source_version"]).strip()
-)
-is_synthetic = (
-    True if pd.isna(counts["is_synthetic"]) else bool(counts["is_synthetic"])
-)
+source_label = "Unknown source" if pd.isna(counts["source_label"]) else str(counts["source_label"])
+source_version = "" if pd.isna(counts["source_version"]) else str(counts["source_version"]).strip()
+is_synthetic = True if pd.isna(counts["is_synthetic"]) else bool(counts["is_synthetic"])
 source_display = f"{source_label} v{source_version}" if source_version else source_label
 
 st.markdown(
@@ -361,8 +355,16 @@ with story_tab:
     flow_cards = (
         ("01", "Validate", "Required files and columns are checked before the database changes."),
         ("02", "Harmonize", "Source adapters translate identifiers, diagnoses, labs, and dates."),
-        ("03", "Prove quality", "Parity, relationships, date ordering, and ETL failures are measured."),
-        ("04", "Build cohorts", "Researchers filter connected patient histories and export results."),
+        (
+            "03",
+            "Prove quality",
+            "Parity, relationships, date ordering, and ETL failures are measured.",
+        ),
+        (
+            "04",
+            "Build cohorts",
+            "Researchers filter connected patient histories and export results.",
+        ),
     )
     for column, (number, title, body) in zip(flow_columns, flow_cards, strict=True):
         with column:
@@ -437,12 +439,8 @@ with cohort_tab:
         ORDER BY filter_name, value
         """
     )
-    sex_options = filter_values.loc[
-        filter_values["filter_name"] == "sex", "value"
-    ].tolist()
-    race_options = filter_values.loc[
-        filter_values["filter_name"] == "race", "value"
-    ].tolist()
+    sex_options = filter_values.loc[filter_values["filter_name"] == "sex", "value"].tolist()
+    race_options = filter_values.loc[filter_values["filter_name"] == "race", "value"].tolist()
     encounter_options = filter_values.loc[
         filter_values["filter_name"] == "encounter_class", "value"
     ].tolist()
@@ -747,14 +745,13 @@ with brain_tab:
             """
         )
 
-        slope_chart = (
-            evidence.set_index("outcome")[["structured_slope", "self_guided_slope"]]
-            .rename(
-                columns={
-                    "structured_slope": "Structured",
-                    "self_guided_slope": "Self-guided",
-                }
-            )
+        slope_chart = evidence.set_index("outcome")[
+            ["structured_slope", "self_guided_slope"]
+        ].rename(
+            columns={
+                "structured_slope": "Structured",
+                "self_guided_slope": "Self-guided",
+            }
         )
         st.markdown("#### Annual cognitive-score change")
         st.bar_chart(
@@ -789,12 +786,8 @@ with brain_tab:
                 "difference": st.column_config.NumberColumn(
                     "Structured − self-guided", format="%.3f"
                 ),
-                "difference_ci_low": st.column_config.NumberColumn(
-                    "95% CI low", format="%.3f"
-                ),
-                "difference_ci_high": st.column_config.NumberColumn(
-                    "95% CI high", format="%.3f"
-                ),
+                "difference_ci_low": st.column_config.NumberColumn("95% CI low", format="%.3f"),
+                "difference_ci_high": st.column_config.NumberColumn("95% CI high", format="%.3f"),
                 "interpretation": "Uncertainty",
             },
         )
@@ -850,13 +843,10 @@ with brain_tab:
                 reverse=True,
             )
             selected_year = st.selectbox("Reporting year", years)
-            year_data = question_data.loc[
-                question_data["year_end"] == selected_year
-            ].copy()
+            year_data = question_data.loc[question_data["year_end"] == selected_year].copy()
 
             overall_mask = year_data["stratification_1"].eq("Overall") & (
-                year_data["stratification_2"].isna()
-                | year_data["stratification_2"].eq("Overall")
+                year_data["stratification_2"].isna() | year_data["stratification_2"].eq("Overall")
             )
             state_data = year_data.loc[
                 overall_mask

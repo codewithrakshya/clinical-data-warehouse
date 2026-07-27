@@ -5,8 +5,7 @@ from pathlib import Path
 import pandas as pd
 
 TRIAL_TITLE = (
-    "Structured vs Self-Guided Multidomain Lifestyle Interventions "
-    "for Global Cognitive Function"
+    "Structured vs Self-Guided Multidomain Lifestyle Interventions for Global Cognitive Function"
 )
 TRIAL_REGISTRATION = "NCT03688126"
 PUBLICATION_URL = "https://jamanetwork.com/journals/jama/fullarticle/2837046"
@@ -70,8 +69,6 @@ def load_us_pointer_evidence(path: Path | None = None) -> pd.DataFrame:
     if (frame["difference_ci_low"] > frame["difference_ci_high"]).any():
         raise ValueError("US-POINTER evidence contains reversed confidence limits")
 
-    frame["ci_excludes_zero"] = (
-        (frame["difference_ci_low"] > 0) | (frame["difference_ci_high"] < 0)
-    )
+    frame["ci_excludes_zero"] = (frame["difference_ci_low"] > 0) | (frame["difference_ci_high"] < 0)
     frame["evidence_design"] = "Randomized clinical trial"
     return frame

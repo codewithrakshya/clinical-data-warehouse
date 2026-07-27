@@ -68,9 +68,7 @@ SYNTHEA_CONTRACTS = {
 MIMIC_CONTRACTS = {
     "patients": SourceContract(
         filename="hosp/patients.csv.gz",
-        required_columns=frozenset(
-            {"subject_id", "gender", "anchor_age", "anchor_year", "dod"}
-        ),
+        required_columns=frozenset({"subject_id", "gender", "anchor_age", "anchor_year", "dod"}),
     ),
     "admissions": SourceContract(
         filename="hosp/admissions.csv.gz",
@@ -88,15 +86,11 @@ MIMIC_CONTRACTS = {
     ),
     "diagnoses": SourceContract(
         filename="hosp/diagnoses_icd.csv.gz",
-        required_columns=frozenset(
-            {"subject_id", "hadm_id", "icd_code", "icd_version"}
-        ),
+        required_columns=frozenset({"subject_id", "hadm_id", "icd_code", "icd_version"}),
     ),
     "diagnosis_dictionary": SourceContract(
         filename="hosp/d_icd_diagnoses.csv.gz",
-        required_columns=frozenset(
-            {"icd_code", "icd_version", "long_title"}
-        ),
+        required_columns=frozenset({"icd_code", "icd_version", "long_title"}),
     ),
     "labs": SourceContract(
         filename="hosp/labevents.csv.gz",

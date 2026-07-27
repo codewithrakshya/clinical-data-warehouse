@@ -50,9 +50,7 @@ def iter_mimic_encounters(input_dir: Path) -> Iterator[tuple[str, ...]]:
     """Map hospital admissions to the common encounter staging grain."""
     for row in _rows(input_dir, "admissions"):
         location = row["admission_location"].strip()
-        description = (
-            f"Hospital admission from {location}" if location else "Hospital admission"
-        )
+        description = f"Hospital admission from {location}" if location else "Hospital admission"
         yield (
             _prefixed("encounter", row["hadm_id"]),
             row["admittime"],
@@ -90,13 +88,10 @@ def iter_mimic_conditions(input_dir: Path) -> Iterator[tuple[str, ...]]:
 def iter_mimic_observations(input_dir: Path) -> Iterator[tuple[str, ...]]:
     """Map laboratory events to numeric or textual observations."""
     lab_items = {
-        row["itemid"]: (row["label"], row["category"])
-        for row in _rows(input_dir, "lab_dictionary")
+        row["itemid"]: (row["label"], row["category"]) for row in _rows(input_dir, "lab_dictionary")
     }
     for row in _rows(input_dir, "labs"):
-        label, category = lab_items.get(
-            row["itemid"], (f"Lab item {row['itemid']}", "Laboratory")
-        )
+        label, category = lab_items.get(row["itemid"], (f"Lab item {row['itemid']}", "Laboratory"))
         numeric_value = row["valuenum"].strip()
         value = numeric_value or row["value"]
         if not value.strip():

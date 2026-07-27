@@ -33,9 +33,7 @@ class UsPointerEvidenceTests(unittest.TestCase):
         evidence.loc[0, "publication_url"] = "https://example.com"
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "evidence.csv"
-            evidence.drop(columns=["ci_excludes_zero", "evidence_design"]).to_csv(
-                path, index=False
-            )
+            evidence.drop(columns=["ci_excludes_zero", "evidence_design"]).to_csv(path, index=False)
 
             with self.assertRaisesRegex(ValueError, "unexpected publication source"):
                 load_us_pointer_evidence(path)

@@ -194,9 +194,7 @@ def normalize_cdc_aging(frame: pd.DataFrame) -> pd.DataFrame:
     for column in ("estimate", "confidence_low", "confidence_high"):
         normalized[column] = pd.to_numeric(normalized[column], errors="coerce")
 
-    normalized["confidence_width"] = (
-        normalized["confidence_high"] - normalized["confidence_low"]
-    )
+    normalized["confidence_width"] = normalized["confidence_high"] - normalized["confidence_low"]
     normalized["estimate_available"] = normalized["estimate"].notna()
     return normalized[[*OUTPUT_COLUMNS, "confidence_width", "estimate_available"]]
 
